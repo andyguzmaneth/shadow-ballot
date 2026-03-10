@@ -16,6 +16,9 @@ Started: Tue Mar 10 16:17:52 CST 2026
 - Hardhat 2 required for this project (Hardhat 3 incompatible with @nomicfoundation/hardhat-toolbox). Use `hardhat.config.cjs` for ESM projects (`"type": "module"` in package.json).
 - ethers.js v6 human-readable ABI: use string array format like `'function foo(uint256 x) returns (uint256)'` — simpler than JSON ABI for config.
 - Contract helpers: use `JsonRpcProvider` + `Wallet` from ethers for read/write contract instances.
+- UI: vanilla TS, no framework. Tab panels are `#panel-voter`, `#panel-coordinator`, `#panel-explorer`. Toggle `.active` class.
+- CSS variables for theme: `--bg-primary`, `--bg-card`, `--accent` (#00e5a0), `--text-primary`, `--font-mono`. Use `.mono` class for addresses/hashes.
+- `renderApp()` in main.ts is the entry point. Add view content inside corresponding `#panel-*` div.
 ---
 
 ## 2026-03-10 - US-001
@@ -93,4 +96,21 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - Human-readable ABI in ethers.js v6 is much simpler for config than full JSON ABI
   - Contract address is placeholder (0x000...) — needs actual Sepolia deployment with funded wallet
   - Deployment: `DEPLOYER_PRIVATE_KEY=0x... npm run deploy:sepolia`
+---
+
+## 2026-03-10 - US-006
+- Implemented: Web app base layout with dark theme, three-tab navigation (Voter/Coordinator/Explorer), header with title + tagline, footer, responsive CSS
+- Files changed:
+  - index.html (updated title, meta description, removed boilerplate)
+  - src/style.css (complete rewrite: dark theme with CSS variables, layout for header/tabs/content/footer, responsive breakpoints)
+  - src/main.ts (complete rewrite: app shell with header, tab nav, three panels with placeholder content, tab switching logic)
+  - Deleted: src/counter.ts, src/typescript.svg (unused boilerplate)
+- **Learnings for future iterations:**
+  - App uses vanilla TS with no UI framework — DOM manipulation via innerHTML + event listeners
+  - Tab switching: `.tab-btn[data-tab]` buttons toggle `.active` class on both buttons and `#panel-{id}` divs
+  - CSS variables defined in `:root` for consistent theming: `--bg-primary`, `--accent`, `--text-primary`, etc.
+  - Accent color is `#00e5a0` (green) — use this for highlights, active states, and emphasis
+  - Monospace class: `.mono` for addresses and hashes
+  - `renderApp()` in main.ts is the entry point — future stories add content inside `#panel-voter`, `#panel-coordinator`, `#panel-explorer`
+  - Max content width: `--max-width: 960px`
 ---

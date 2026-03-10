@@ -123,7 +123,7 @@
         "No UI framework — vanilla HTML/CSS/JS or minimal lit-html"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "The aesthetic should feel serious/cryptographic — not playful. Think terminal-inspired with subtle green/cyan accents. The dark theme reinforces the 'shadow' metaphor."
     },
     {
