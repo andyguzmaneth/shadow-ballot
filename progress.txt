@@ -54,4 +54,22 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - Transaction.from(signedHex) can parse back and recover the sender address via ecrecover — good for validation
   - yParity in Signature.from must be `0 | 1` type, not `number` — needs cast
   - ethersKeccak256(signedTxHex) gives the tx hash that will appear on-chain
+- Shared secret for anamorphic nonce = same ECDH shared secret from stealth address. Ephemeral key does double duty.
+- Vote encoding: 2 bytes (proposalId + choice). Candidate set = 3N for N proposals.
+- castVoteOffline() is the testable version (no RPC); castVote() is the live version with broadcast.
+- decodeVote uses unsignedTxHash (not txHash) as the "public message" for nonce derivation — must match what was signed.
+---
+
+## 2026-03-10 - US-004
+- Implemented: Wallet management (generate/persist in localStorage), vote encoding (2-byte format), end-to-end castVote + decodeVote pipeline, 12 unit tests
+- Files changed:
+  - src/lib/wallet.ts (generateWallet, loadOrCreateWallet with localStorage persistence)
+  - src/lib/vote.ts (encodeVote, decodeVoteBytes, choiceLabel, buildCandidateSet, castVote, castVoteOffline, decodeVote, deriveSharedSecret, deriveSharedSecretCoordinator)
+  - src/lib/vote.test.ts (12 tests: encode/decode, labels, candidate set, e2e YES/NO/ABSTAIN, wrong candidates, wrong coordinator keys, stealth scan match)
+- **Learnings for future iterations:**
+  - The ephemeral key does double duty: generates stealth address AND provides shared secret for anamorphic nonce via the same ECDH
+  - The "public message" for nonce derivation is the unsigned tx hash (the digest that gets ECDSA-signed), NOT the on-chain tx hash
+  - castVoteOffline() is essential for testing — avoids RPC calls while exercising the full crypto pipeline
+  - Don't use `require()` in ESM modules — use top-level imports or dynamic `await import()`
+  - Keep unused params with underscore prefix (`_coordinatorSpendingPubKey`) to maintain API stability for future stories
 ---

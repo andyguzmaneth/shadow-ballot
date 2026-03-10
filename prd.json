@@ -81,7 +81,7 @@
         "Console logging for each step to aid debugging during demo"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "The shared secret for the anamorphic signature should be derived from the same ECDH used for stealth addresses. The ephemeral key serves double duty: it generates the stealth address AND provides the shared secret for hiding the vote. This is elegant — one key exchange, two privacy properties."
     },
     {
