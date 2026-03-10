@@ -25,6 +25,8 @@ Started: Tue Mar 10 16:17:52 CST 2026
 - Demo proposals hardcoded in `config.ts` `DEMO_PROPOSALS` array (contract not deployed yet).
 - Reconstruct unsignedTxHash from signedTxHex: `Transaction.from(signedTxHex).unsignedHash` — needed for vote decoding.
 - Explorer view: parse full tx details (from, to, value, sig) from signedTxHex stored in announcements — no RPC needed for demo.
+- Demo wallets: Hardhat default accounts in `DEMO_WALLETS` config array. `loadWalletFromKey(hexKey)` persists to same localStorage slot as `loadOrCreateWallet()`.
+- Modal pattern: `.modal-overlay` (fixed, flex center) + `.modal-content` + click-outside-to-close.
 ---
 
 ## 2026-03-10 - US-001
@@ -166,4 +168,22 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - The explorer uses pre-decoded vote data (computed on lookup) and reveals it on button click for dramatic effect
   - CSS `@keyframes` with `box-shadow` glow + `filter: brightness()` creates an effective "decryption" visual
   - Grid `grid-template-columns: 1fr 1fr` with mobile fallback to `1fr` for responsive split panels
+---
+
+## 2026-03-10 - US-010
+- Implemented: Demo polish — pre-funded wallets, quick-start demo mode, intro text, about modal with paper links, OG meta tags, README.md
+- Files changed:
+  - src/config.ts (added DEMO_WALLETS array with 5 Hardhat default testnet wallets, DemoWallet interface)
+  - src/lib/wallet.ts (added loadWalletFromKey() for loading demo wallets from hex private key)
+  - src/views/voter.ts (added voter-intro section with concept explanation, about modal with crypto details + paper/spec links, demo wallet loader button, attachDemoListeners/attachAboutListeners)
+  - src/style.css (added styles for voter-intro, about-btn, demo-mode, modal-overlay/content/close/links)
+  - index.html (added og:title, og:description, og:type, twitter:card meta tags)
+  - README.md (new: project description, architecture diagram, how crypto works, quick start, demo flow, demo wallets table)
+  - prd.json (US-010 passes: true)
+- **Learnings for future iterations:**
+  - Hardhat default accounts (ac0974bec..., 59c6995e..., etc.) are well-known deterministic keys — perfect for demo wallets since they're publicly documented
+  - `loadWalletFromKey()` reuses the same localStorage key as `loadOrCreateWallet()` so switching demo wallets seamlessly updates the persisted wallet
+  - Modal pattern: fixed overlay + flex center, click-outside-to-close via comparing `e.target === overlay`
+  - OG meta tags don't need og:image for basic sharing — title + description + type is sufficient
+  - Vite static build produces dist/ folder directly deployable to Vercel/Netlify with zero config
 ---

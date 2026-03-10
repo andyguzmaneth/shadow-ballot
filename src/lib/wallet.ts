@@ -41,6 +41,21 @@ export function generateWallet(): Wallet {
 }
 
 /**
+ * Load a wallet from a hex private key string and persist it.
+ */
+export function loadWalletFromKey(privateKeyHex: string): Wallet {
+  const privateKey = hexToBytes(privateKeyHex);
+  const publicKey = getPublicKey(privateKey, true);
+  const address = pubKeyToAddress(publicKey);
+  const wallet = { privateKey, publicKey, address };
+  localStorage.setItem(
+    WALLET_STORAGE_KEY,
+    JSON.stringify({ privateKey: privateKeyHex })
+  );
+  return wallet;
+}
+
+/**
  * Load wallet from localStorage, or create and persist a new one.
  */
 export function loadOrCreateWallet(): Wallet {

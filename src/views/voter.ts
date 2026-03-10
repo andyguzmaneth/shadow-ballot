@@ -9,7 +9,7 @@
  * 4. Stores the ephemeral public key for coordinator scanning
  */
 
-import { loadOrCreateWallet, type Wallet } from '../lib/wallet.js';
+import { loadOrCreateWallet, loadWalletFromKey, type Wallet } from '../lib/wallet.js';
 import { getBalance } from '../lib/tx.js';
 import {
   castVote,
@@ -23,6 +23,7 @@ import { generateStealthKeys } from '../lib/stealth.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import {
   DEMO_PROPOSALS,
+  DEMO_WALLETS,
   ANNOUNCEMENTS_STORAGE_KEY,
   COORDINATOR_STORAGE_KEY,
   type DemoProposal,
@@ -142,6 +143,8 @@ export function initVoterView(): void {
 
   attachWalletListeners(wallet);
   attachVoteListeners(wallet, coordinator.metaAddress);
+  attachDemoListeners(coordinator.metaAddress);
+  attachAboutListeners();
   refreshBalance(wallet.address);
 }
 
@@ -149,6 +152,16 @@ function renderVoterView(wallet: Wallet, voteRecords: VoteRecord[]): string {
   const votedProposalIds = new Set(voteRecords.map((r) => r.proposalId));
 
   return `
+    <div class="voter-intro">
+      <p>
+        Shadow Ballot lets you vote on proposals by sending a normal-looking ETH transfer.
+        Your vote is cryptographically hidden inside the transaction signature using
+        <strong>anamorphic signatures</strong>. No one — not even a blockchain explorer — can
+        tell you voted. Only the coordinator can decode the hidden vote.
+      </p>
+      <button class="about-btn" id="about-btn">How does this work?</button>
+    </div>
+
     <div class="voter-header">
       <div class="wallet-info">
         <div class="wallet-label">Your Wallet</div>
@@ -160,6 +173,10 @@ function renderVoterView(wallet: Wallet, voteRecords: VoteRecord[]): string {
           Balance: <span id="voter-balance" class="mono">loading...</span> ETH
           <button class="refresh-btn" id="refresh-balance-btn" title="Refresh balance">Refresh</button>
         </div>
+      </div>
+      <div class="demo-mode">
+        <button class="demo-btn" id="demo-wallet-btn">Load Demo Wallet</button>
+        <span class="demo-hint">Pre-funded Sepolia wallet for testing</span>
       </div>
       <div id="balance-warning" class="balance-warning" style="display:none;">
         Insufficient balance. You need ~0.002 ETH per vote. Get Sepolia ETH from a faucet.
@@ -173,6 +190,40 @@ function renderVoterView(wallet: Wallet, voteRecords: VoteRecord[]): string {
     </div>
 
     <div id="vote-status" class="vote-status" style="display:none;"></div>
+
+    <div id="about-modal" class="modal-overlay" style="display:none;">
+      <div class="modal-content">
+        <button class="modal-close" id="about-modal-close">&times;</button>
+        <h2>How Shadow Ballot Works</h2>
+        <div class="modal-body">
+          <h3>Anamorphic Signatures</h3>
+          <p>
+            Every ECDSA signature uses a random nonce <em>k</em>. In anamorphic signatures,
+            we replace the random nonce with a deterministic one derived from a shared secret
+            and the hidden message (your vote). The resulting signature is indistinguishable
+            from a normal signature — but the coordinator, who knows the shared secret, can
+            extract the hidden vote by brute-forcing candidate messages.
+          </p>
+          <h3>Stealth Addresses (ERC-5564)</h3>
+          <p>
+            Each vote is sent to a one-time stealth address derived via ECDH. The coordinator
+            publishes a stealth meta-address. The voter generates an ephemeral key, computes a
+            shared secret, and derives a fresh address that only the coordinator can link back.
+            This means each vote goes to a unique address — there's no "voting contract" to trace.
+          </p>
+          <h3>The Result</h3>
+          <p>
+            On a block explorer, your vote looks like a plain 0.001 ETH transfer between two
+            random addresses. No smart contract interaction. No metadata. No trace of voting.
+            Participation deniability: you can't prove you voted even if you wanted to.
+          </p>
+          <div class="modal-links">
+            <a href="https://eprint.iacr.org/2023/249" target="_blank" rel="noopener">Anamorphic Signatures — CRYPTO 2023 Paper</a>
+            <a href="https://eips.ethereum.org/EIPS/eip-5564" target="_blank" rel="noopener">ERC-5564: Stealth Addresses Spec</a>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -385,4 +436,60 @@ async function handleVote(
 
     allBtns.forEach((b) => { b.disabled = false; });
   }
+}
+
+/** Cycle through demo wallets on button click. */
+let demoWalletIndex = 0;
+
+function attachDemoListeners(metaAddress: string): void {
+  const btn = document.getElementById('demo-wallet-btn');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    const demoWallet = DEMO_WALLETS[demoWalletIndex % DEMO_WALLETS.length];
+    demoWalletIndex++;
+
+    const wallet = loadWalletFromKey(demoWallet.privateKey);
+
+    // Re-render the voter view with the new wallet
+    const panel = document.getElementById('panel-voter');
+    if (!panel) return;
+
+    const voteRecords = loadVoteRecords();
+    panel.innerHTML = renderVoterView(wallet, voteRecords);
+
+    attachWalletListeners(wallet);
+    attachVoteListeners(wallet, metaAddress);
+    attachDemoListeners(metaAddress);
+    attachAboutListeners();
+    refreshBalance(wallet.address);
+
+    // Flash a brief confirmation
+    const addrEl = document.getElementById('voter-address');
+    if (addrEl) {
+      addrEl.style.color = 'var(--accent)';
+      setTimeout(() => { addrEl.style.color = ''; }, 1200);
+    }
+  });
+}
+
+function attachAboutListeners(): void {
+  const btn = document.getElementById('about-btn');
+  const modal = document.getElementById('about-modal');
+  const closeBtn = document.getElementById('about-modal-close');
+  if (!btn || !modal) return;
+
+  btn.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+  }
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
 }
