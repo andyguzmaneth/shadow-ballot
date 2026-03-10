@@ -41,7 +41,7 @@
         "All crypto uses noble-secp256k1, works in browser"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Simplified ERC-5564. Skip view tags for now. The coordinator will scan ALL transactions to their stealth addresses by trying each ephemeral public key. For the hackathon demo this is fine since we'll have <100 transactions."
     },
     {
@@ -62,7 +62,7 @@
         "Error handling for insufficient funds, nonce too low, tx rejected"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "This is the hardest part. ethers.js Transaction class handles RLP encoding but uses its own signing. We need to: 1) Build the unsigned tx with ethers, 2) Get the tx hash to sign, 3) Sign with our custom k using noble-secp256k1, 4) Inject our r,s,v back into the tx, 5) Serialize and broadcast. Alternatively, do all RLP encoding manually. Test carefully on Sepolia."
     },
     {
