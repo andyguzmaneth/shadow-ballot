@@ -24,6 +24,7 @@ Started: Tue Mar 10 16:17:52 CST 2026
 - Vote records stored in localStorage (`shadow-ballot-votes-cast`) to track voted proposals.
 - Demo proposals hardcoded in `config.ts` `DEMO_PROPOSALS` array (contract not deployed yet).
 - Reconstruct unsignedTxHash from signedTxHex: `Transaction.from(signedTxHex).unsignedHash` — needed for vote decoding.
+- Explorer view: parse full tx details (from, to, value, sig) from signedTxHex stored in announcements — no RPC needed for demo.
 ---
 
 ## 2026-03-10 - US-001
@@ -150,4 +151,19 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - `decodeVote()` needs the unsignedTxHash (not on-chain txHash) as the "public message" — must reconstruct from signedTxHex stored in announcements
   - Use `setTimeout(..., 50)` before CPU-intensive crypto work to allow UI to render scanning state first
   - `scanForStealthTx()` verifies the tx recipient matches the expected stealth address before attempting vote decode
+---
+
+## 2026-03-10 - US-009
+- Implemented: Explorer view with tx hash lookup, side-by-side "public vs hidden" panels, dramatic decode reveal animation
+- Files changed:
+  - src/views/explorer.ts (new: explorer view module — tx lookup from localStorage announcements, public info panel, locked/decrypting/revealed hidden panel, decode button with animation)
+  - src/style.css (updated: explorer styles — input group, split grid panels, locked state with pulse animation, decrypt animation with glow, reveal animation, responsive mobile stack)
+  - src/main.ts (updated: import and initialize explorer view, remove placeholder panel)
+  - prd.json (US-009 passes: true)
+- **Learnings for future iterations:**
+  - TX details can be fully parsed from signedTxHex via `Transaction.from()` — no RPC needed when announcement data is available
+  - `formatEther()` from ethers.js converts wei to ETH string for display
+  - The explorer uses pre-decoded vote data (computed on lookup) and reveals it on button click for dramatic effect
+  - CSS `@keyframes` with `box-shadow` glow + `filter: brightness()` creates an effective "decryption" visual
+  - Grid `grid-template-columns: 1fr 1fr` with mobile fallback to `1fr` for responsive split panels
 ---

@@ -1,6 +1,7 @@
 import './style.css';
 import { initVoterView } from './views/voter.js';
 import { initCoordinatorView } from './views/coordinator.js';
+import { initExplorerView } from './views/explorer.js';
 
 type TabId = 'voter' | 'coordinator' | 'explorer';
 
@@ -29,12 +30,7 @@ function renderApp(): void {
     <main class="content">
       <div id="panel-voter" class="tab-panel active"></div>
       <div id="panel-coordinator" class="tab-panel"></div>
-      <div id="panel-explorer" class="tab-panel">
-        <div class="panel-placeholder">
-          <h2>Explorer</h2>
-          <p>Paste any transaction hash and reveal the vote hidden inside a normal transfer.</p>
-        </div>
-      </div>
+      <div id="panel-explorer" class="tab-panel"></div>
     </main>
 
     <footer class="footer">
@@ -45,6 +41,7 @@ function renderApp(): void {
   initTabs();
   initVoterView();
   initCoordinatorView();
+  initExplorerView();
 }
 
 function initTabs(): void {

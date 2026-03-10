@@ -183,7 +183,7 @@
         "Styled dramatically: the reveal should feel like peeling back a layer"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "This is the demo climax. The judge sees a boring Etherscan transfer, then the app reveals it's actually a vote. The contrast between the two views should be stark and memorable. Consider a dramatic reveal animation — maybe a 'decrypt' visual effect."
     },
     {
