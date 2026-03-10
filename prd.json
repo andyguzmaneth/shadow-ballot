@@ -22,7 +22,7 @@
         "npm run dev serves the page, npm run build produces static output"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Reference implementation at ~/Projects/anamorphic-signatures-poc/anamorphic-ecdsa.js. Port the logic but use noble-secp256k1 instead of elliptic.js for smaller bundle. The core trick: k = KDF(sharedSecret, messageHash, hiddenData) instead of random. Extraction is brute-force: try each candidate, derive k, compute r, check if it matches signature r."
     },
     {

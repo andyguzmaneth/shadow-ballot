@@ -1,0 +1,25 @@
+# Ralph Progress Log
+Started: Tue Mar 10 16:17:52 CST 2026
+
+## Codebase Patterns
+- @noble/secp256k1 v3 API: `Point` (not `ProjectivePoint`), `etc.mod()`, `etc.invert()`, `hashes.sha256` (not `etc.sha256Sync`)
+- @noble/hashes v2 exports require `.js` suffix: `@noble/hashes/sha3.js`, `@noble/hashes/utils.js`
+- noble/secp256k1 v3 `verify()` always hashes msg with sha256 internally — cannot use it for keccak256-hashed messages. Use manual ECDSA verify instead.
+- Curve order N hardcoded: `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n`
+- Must initialize noble hashes before use: `hashes.sha256 = ...` and `hashes.hmacSha256 = ...`
+---
+
+## 2026-03-10 - US-001
+- Implemented: Vite + vanilla TS project scaffold, anamorphic ECDSA library, 4 unit tests
+- Files changed:
+  - package.json (project config, scripts: dev/build/preview/test)
+  - tsconfig.json (TypeScript config)
+  - index.html (Vite entry)
+  - src/lib/anamorphic.ts (signWithCustomNonce, deriveNonceFromSecret, extractHiddenMessage, verifySignature, createAnamorphicSignature)
+  - src/lib/anamorphic.test.ts (4 tests: sign+verify, extract hidden msg, null on wrong candidates, indistinguishability)
+  - .gitignore
+- **Learnings for future iterations:**
+  - noble/secp256k1 v3 has completely different API from v2 — no CURVE.n, no ProjectivePoint, sign returns Uint8Array not object
+  - verify() in noble v3 always sha256-hashes the message — need manual ECDSA verify for keccak256 pre-hashed messages
+  - Noble hashes must be initialized: `hashes.sha256` and `hashes.hmacSha256` before calling sign/verify
+---
