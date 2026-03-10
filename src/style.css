@@ -450,6 +450,342 @@ body {
   background: rgba(255, 68, 102, 0.15);
 }
 
+/* ── Coordinator View ── */
+
+.coordinator-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+
+.coordinator-empty h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+.coordinator-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.coordinator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.coordinator-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.coordinator-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  white-space: nowrap;
+}
+
+.scan-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
+.scan-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(10, 10, 15, 0.3);
+  border-top-color: var(--bg-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Scan Status Bar ── */
+
+.scan-status {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1.5rem;
+}
+
+.scan-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.scan-stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.scan-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.scan-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  width: 100%;
+  padding: 0.25rem 0;
+}
+
+/* ── Tally Cards ── */
+
+.tallies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tally-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.tally-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.tally-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.tally-total {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.tally-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tally-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tally-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  width: 60px;
+  text-align: right;
+}
+
+.yes-label { color: #00e5a0; }
+.no-label { color: #ff4466; }
+.abstain-label { color: #8888a0; }
+
+.tally-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tally-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+.yes-bar { background: #00e5a0; }
+.no-bar { background: #ff4466; }
+.abstain-bar { background: #8888a0; }
+
+.tally-count {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  width: 24px;
+  text-align: right;
+}
+
+.tally-actions {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.submit-btn {
+  padding: 0.4rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+}
+
+.submit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Decoded Transactions List ── */
+
+.decoded-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.decoded-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--border);
+}
+
+.decoded-row.decoded-success {
+  border-left-color: var(--accent);
+}
+
+.decoded-row.decoded-fail {
+  border-left-color: #ff4466;
+}
+
+.decoded-row.decoded-no-match {
+  border-left-color: var(--text-muted);
+}
+
+.decoded-tx {
+  flex-shrink: 0;
+}
+
+.decoded-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.decoded-vote-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.decoded-vote-badge.yes {
+  background: rgba(0, 229, 160, 0.15);
+  color: #00e5a0;
+}
+
+.decoded-vote-badge.no {
+  background: rgba(255, 68, 102, 0.15);
+  color: #ff4466;
+}
+
+.decoded-vote-badge.abstain {
+  background: rgba(136, 136, 160, 0.15);
+  color: #8888a0;
+}
+
+.decoded-detail {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* ── Submit Status ── */
+
+.submit-status {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.submit-status.loading {
+  background: var(--bg-card);
+  border-color: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.submit-status.success {
+  background: rgba(0, 229, 160, 0.08);
+  border-color: var(--accent);
+}
+
+.submit-status.error {
+  background: rgba(255, 68, 102, 0.08);
+  border-color: #ff4466;
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 640px) {

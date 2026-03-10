@@ -1,5 +1,6 @@
 import './style.css';
 import { initVoterView } from './views/voter.js';
+import { initCoordinatorView } from './views/coordinator.js';
 
 type TabId = 'voter' | 'coordinator' | 'explorer';
 
@@ -27,12 +28,7 @@ function renderApp(): void {
 
     <main class="content">
       <div id="panel-voter" class="tab-panel active"></div>
-      <div id="panel-coordinator" class="tab-panel">
-        <div class="panel-placeholder">
-          <h2>Coordinator</h2>
-          <p>Scan stealth transactions, decode hidden votes, and publish results on-chain.</p>
-        </div>
-      </div>
+      <div id="panel-coordinator" class="tab-panel"></div>
       <div id="panel-explorer" class="tab-panel">
         <div class="panel-placeholder">
           <h2>Explorer</h2>
@@ -48,6 +44,7 @@ function renderApp(): void {
 
   initTabs();
   initVoterView();
+  initCoordinatorView();
 }
 
 function initTabs(): void {

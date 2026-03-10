@@ -164,7 +164,7 @@
         "Error handling for: no transactions found, decode failures, contract submission failures"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "For the hackathon demo, the simplest announcement mechanism is: voter writes {txHash, ephemeralPubKey} to a shared in-memory store or localStorage. In production this would be an on-chain announcement log (ERC-5564 style). The coordinator needs ephemeral pub keys to scan — without them, scanning requires checking every single transaction."
     },
     {

@@ -23,6 +23,7 @@ Started: Tue Mar 10 16:17:52 CST 2026
 - Vote announcements (txHash, ephemeralPubKey, etc.) stored in localStorage (`shadow-ballot-announcements`) for coordinator scanning.
 - Vote records stored in localStorage (`shadow-ballot-votes-cast`) to track voted proposals.
 - Demo proposals hardcoded in `config.ts` `DEMO_PROPOSALS` array (contract not deployed yet).
+- Reconstruct unsignedTxHash from signedTxHex: `Transaction.from(signedTxHex).unsignedHash` — needed for vote decoding.
 ---
 
 ## 2026-03-10 - US-001
@@ -134,4 +135,19 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - Vote records track which proposals the voter has already voted on — prevents double-voting from UI
   - The `castVote()` function from `vote.ts` handles the entire crypto pipeline: stealth address -> anamorphic nonce -> sign -> broadcast
   - Use `bytesToHex`/`hexToBytes` from `@noble/hashes/utils.js` for serializing keys to/from localStorage
+---
+
+## 2026-03-10 - US-008
+- Implemented: Coordinator view with vote scanning, anamorphic signature decoding, per-proposal tallies with bar charts, and on-chain result submission
+- Files changed:
+  - src/views/coordinator.ts (new: coordinator view module — scan announcements, decode votes, display tallies, submit results)
+  - src/main.ts (updated: import and initialize coordinator view, remove placeholder panel)
+  - src/style.css (updated: coordinator view styles — scan status bar, tally cards with bar charts, decoded tx list, submit status)
+  - prd.json (US-008 passes: true)
+- **Learnings for future iterations:**
+  - To reconstruct unsignedTxHash from signedTxHex: `Transaction.from(signedTxHex).unsignedHash` — ethers strips the signature and re-derives the hash
+  - The coordinator view reads announcements from localStorage (same key as voter view writes to) — no RPC scanning needed for demo
+  - `decodeVote()` needs the unsignedTxHash (not on-chain txHash) as the "public message" — must reconstruct from signedTxHex stored in announcements
+  - Use `setTimeout(..., 50)` before CPU-intensive crypto work to allow UI to render scanning state first
+  - `scanForStealthTx()` verifies the tx recipient matches the expected stealth address before attempting vote decode
 ---
