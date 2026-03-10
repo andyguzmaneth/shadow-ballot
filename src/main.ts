@@ -1,4 +1,5 @@
 import './style.css';
+import { initVoterView } from './views/voter.js';
 
 type TabId = 'voter' | 'coordinator' | 'explorer';
 
@@ -25,12 +26,7 @@ function renderApp(): void {
     </nav>
 
     <main class="content">
-      <div id="panel-voter" class="tab-panel active">
-        <div class="panel-placeholder">
-          <h2>Voter</h2>
-          <p>Cast your vote as a normal ETH transfer. No one can tell you voted.</p>
-        </div>
-      </div>
+      <div id="panel-voter" class="tab-panel active"></div>
       <div id="panel-coordinator" class="tab-panel">
         <div class="panel-placeholder">
           <h2>Coordinator</h2>
@@ -51,6 +47,7 @@ function renderApp(): void {
   `;
 
   initTabs();
+  initVoterView();
 }
 
 function initTabs(): void {

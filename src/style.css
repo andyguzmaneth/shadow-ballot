@@ -178,6 +178,278 @@ body {
   color: var(--text-muted);
 }
 
+/* ── Voter View ── */
+
+.voter-header {
+  margin-bottom: 1.5rem;
+}
+
+.wallet-info {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.wallet-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.wallet-address {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.wallet-balance {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.copy-btn,
+.refresh-btn {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.copy-btn:hover,
+.refresh-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.balance-warning {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: rgba(255, 170, 0, 0.1);
+  border: 1px solid rgba(255, 170, 0, 0.3);
+  border-radius: var(--radius-sm);
+  color: #ffaa00;
+  font-size: 0.8rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+}
+
+/* ── Proposal Cards ── */
+
+.proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.proposal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  transition: border-color 0.2s;
+}
+
+.proposal-card:hover {
+  border-color: var(--accent-dim);
+}
+
+.proposal-card.voted {
+  border-color: var(--accent);
+  border-left: 3px solid var(--accent);
+}
+
+.proposal-card.ended {
+  opacity: 0.6;
+}
+
+.proposal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.proposal-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.proposal-deadline {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.proposal-ended-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Vote Buttons ── */
+
+.vote-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.vote-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.vote-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.vote-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vote-btn.vote-yes:hover:not(:disabled) {
+  border-color: #00e5a0;
+  color: #00e5a0;
+}
+
+.vote-btn.vote-no:hover:not(:disabled) {
+  border-color: #ff4466;
+  color: #ff4466;
+}
+
+.vote-btn.vote-abstain:hover:not(:disabled) {
+  border-color: #8888a0;
+  color: #8888a0;
+}
+
+/* ── Vote Cast Badge ── */
+
+.vote-cast-badge {
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+
+.vote-tx {
+  font-size: 0.8rem;
+}
+
+.etherscan-link {
+  color: var(--accent-dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.etherscan-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ── Vote Status ── */
+
+.vote-status {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.vote-status.loading {
+  background: var(--bg-card);
+  border-color: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.vote-status.success {
+  background: rgba(0, 229, 160, 0.08);
+  border-color: var(--accent);
+}
+
+.vote-status.error {
+  background: rgba(255, 68, 102, 0.08);
+  border-color: #ff4466;
+}
+
+.status-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-text strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.status-detail {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.status-tx {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.retry-btn {
+  margin-top: 0.75rem;
+  padding: 0.4rem 1rem;
+  background: var(--bg-hover);
+  border: 1px solid #ff4466;
+  border-radius: var(--radius-sm);
+  color: #ff4466;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.retry-btn:hover {
+  background: rgba(255, 68, 102, 0.15);
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 640px) {

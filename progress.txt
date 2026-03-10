@@ -18,7 +18,11 @@ Started: Tue Mar 10 16:17:52 CST 2026
 - Contract helpers: use `JsonRpcProvider` + `Wallet` from ethers for read/write contract instances.
 - UI: vanilla TS, no framework. Tab panels are `#panel-voter`, `#panel-coordinator`, `#panel-explorer`. Toggle `.active` class.
 - CSS variables for theme: `--bg-primary`, `--bg-card`, `--accent` (#00e5a0), `--text-primary`, `--font-mono`. Use `.mono` class for addresses/hashes.
-- `renderApp()` in main.ts is the entry point. Add view content inside corresponding `#panel-*` div.
+- `renderApp()` in main.ts is the entry point. View modules in `src/views/` export `init*View()` functions called after DOM render.
+- Coordinator keys generated once, stored in localStorage (`shadow-ballot-coordinator`). Shared across views.
+- Vote announcements (txHash, ephemeralPubKey, etc.) stored in localStorage (`shadow-ballot-announcements`) for coordinator scanning.
+- Vote records stored in localStorage (`shadow-ballot-votes-cast`) to track voted proposals.
+- Demo proposals hardcoded in `config.ts` `DEMO_PROPOSALS` array (contract not deployed yet).
 ---
 
 ## 2026-03-10 - US-001
@@ -113,4 +117,21 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - Monospace class: `.mono` for addresses and hashes
   - `renderApp()` in main.ts is the entry point — future stories add content inside `#panel-voter`, `#panel-coordinator`, `#panel-explorer`
   - Max content width: `--max-width: 960px`
+---
+
+## 2026-03-10 - US-007
+- Implemented: Voter view with proposal list, wallet display, balance check, full anamorphic voting flow, success/error states with Etherscan links
+- Files changed:
+  - src/views/voter.ts (new: voter view module with proposal rendering, wallet management, vote casting flow, localStorage persistence for votes/announcements/coordinator keys)
+  - src/main.ts (updated: integrate voter view via initVoterView(), removed placeholder panel content for voter)
+  - src/config.ts (updated: added COORDINATOR_STORAGE_KEY, ANNOUNCEMENTS_STORAGE_KEY, DEMO_PROPOSALS array, DemoProposal interface)
+  - src/style.css (updated: added voter view styles — wallet info, proposal cards, vote buttons, status spinner, success/error states)
+  - prd.json (US-007 passes: true)
+- **Learnings for future iterations:**
+  - View modules pattern: each view in `src/views/` exports `init*View()` called from main.ts after innerHTML is set
+  - Coordinator stealth keys are generated once and shared across views via localStorage — the voter view creates them if they don't exist
+  - Vote announcements (ephemeral pubkey, txHash, r, s, signedTxHex) are stored in localStorage for the coordinator view to scan later
+  - Vote records track which proposals the voter has already voted on — prevents double-voting from UI
+  - The `castVote()` function from `vote.ts` handles the entire crypto pipeline: stealth address -> anamorphic nonce -> sign -> broadcast
+  - Use `bytesToHex`/`hexToBytes` from `@noble/hashes/utils.js` for serializing keys to/from localStorage
 ---

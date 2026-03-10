@@ -144,7 +144,7 @@
         "Console logs the ephemeral public key and stealth address for debugging"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "For the demo, pre-create 2-3 proposals. The Etherscan link is the key demo moment — when opened, it should look like a completely normal 0.001 ETH transfer with no voting contract in sight. Pre-fund 3-5 voter wallets with Sepolia ETH for smooth demo."
     },
     {
