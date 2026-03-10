@@ -13,6 +13,9 @@ Started: Tue Mar 10 16:17:52 CST 2026
 - ethers.js v6 Transaction: use `Transaction.from({...})` to build, `.unsignedHash` for digest, inject `Signature.from({r, s, yParity})` into `.signature`, then `.serialized` for signed hex
 - ethers.js v6 Signature.from: `yParity` must be typed as `0 | 1`, cast with `as 0 | 1`
 - RPC fallback pattern: iterate SEPOLIA_RPC_URLS array, try each, throw after all fail
+- Hardhat 2 required for this project (Hardhat 3 incompatible with @nomicfoundation/hardhat-toolbox). Use `hardhat.config.cjs` for ESM projects (`"type": "module"` in package.json).
+- ethers.js v6 human-readable ABI: use string array format like `'function foo(uint256 x) returns (uint256)'` — simpler than JSON ABI for config.
+- Contract helpers: use `JsonRpcProvider` + `Wallet` from ethers for read/write contract instances.
 ---
 
 ## 2026-03-10 - US-001
@@ -72,4 +75,22 @@ Started: Tue Mar 10 16:17:52 CST 2026
   - castVoteOffline() is essential for testing — avoids RPC calls while exercising the full crypto pipeline
   - Don't use `require()` in ESM modules — use top-level imports or dynamic `await import()`
   - Keep unused params with underscore prefix (`_coordinatorSpendingPubKey`) to maintain API stability for future stories
+---
+
+## 2026-03-10 - US-005
+- Implemented: ShadowBallot.sol smart contract, Hardhat compilation, deployment script, config.ts with ABI, contract.ts helper functions
+- Files changed:
+  - contracts/ShadowBallot.sol (createProposal, submitResults, getProposal, getProposalCount, coordinator immutable, events)
+  - hardhat.config.cjs (Hardhat 2 config with Sepolia network, .cjs for ESM compat)
+  - scripts/deploy.cjs (deployment script, logs address for config update)
+  - src/config.ts (CONTRACT_ADDRESS placeholder, SHADOW_BALLOT_ABI human-readable format)
+  - src/lib/contract.ts (createProposal, submitResults, getProposal, getProposalCount, getCoordinatorAddress helpers)
+  - package.json (added compile and deploy:sepolia scripts, hardhat devDependencies)
+  - .gitignore (added artifacts/, cache/, typechain-types/)
+- **Learnings for future iterations:**
+  - Hardhat 3 is NOT compatible with @nomicfoundation/hardhat-toolbox latest — must use `hardhat@^2` with `@nomicfoundation/hardhat-toolbox@hh2`
+  - ESM projects (`"type": "module"`) need `hardhat.config.cjs` (CommonJS) — Hardhat 2 auto-discovers it
+  - Human-readable ABI in ethers.js v6 is much simpler for config than full JSON ABI
+  - Contract address is placeholder (0x000...) — needs actual Sepolia deployment with funded wallet
+  - Deployment: `DEPLOYER_PRIVATE_KEY=0x... npm run deploy:sepolia`
 ---

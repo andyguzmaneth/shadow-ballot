@@ -102,7 +102,7 @@
         "Deployment script that deploys and saves address"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Keep the contract dead simple. It's just a results registry. The privacy happens off-chain in the signatures. Use a fresh Sepolia deployer wallet — get testnet ETH from a faucet. If faucets are unreliable, hardcode a pre-deployed contract address instead and skip deployment automation."
     },
     {
