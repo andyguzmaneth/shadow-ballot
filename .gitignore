@@ -4,3 +4,12 @@ dist/
 artifacts/
 cache/
 typechain-types/
+
+# circom/snarkjs build outputs (regenerable, large)
+circuits/*.r1cs
+circuits/*.sym
+circuits/*.zkey
+circuits/*.ptau
+circuits/*.wtns
+circuits/eligibility_js/
+circuits/EligibilityVerifier.sol
