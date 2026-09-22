@@ -45,6 +45,30 @@ describe('tx - buildTransaction', () => {
     expect(tx.maxPriorityFeePerGas).toBeGreaterThan(0n);
   });
 
+  it('should sample varying gas fees rather than a fixed constant (Ch5 observer-advantage fix, 2026-08-19)', () => {
+    // Same bug class as the fixed vote value: maxFeePerGas/maxPriorityFeePerGas
+    // were previously hardcoded to identical values on every transaction.
+    const fees = new Set<string>();
+    for (let i = 0; i < 8; i++) {
+      const tx = buildTransaction('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', 0n, 0);
+      fees.add(`${tx.maxFeePerGas}-${tx.maxPriorityFeePerGas}`);
+    }
+    expect(fees.size).toBe(8);
+  });
+
+  it('should use an explicit feeOverride when provided (the online castVote() path)', () => {
+    const tx = buildTransaction(
+      '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+      0n,
+      0,
+      SEPOLIA_CHAIN_ID,
+      { maxFeePerGas: 123n, maxPriorityFeePerGas: 45n }
+    );
+    expect(tx.maxFeePerGas).toBe(123n);
+    expect(tx.maxPriorityFeePerGas).toBe(45n);
+  });
+
   it('should accept custom chain ID', () => {
     const tx = buildTransaction(
       '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',

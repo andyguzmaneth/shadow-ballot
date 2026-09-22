@@ -35,15 +35,40 @@ export interface UnsignedTx {
 }
 
 /**
- * Build an unsigned EIP-1559 transaction object.
+ * Sample plausible-looking EIP-1559 fee fields with jitter, instead of a fixed
+ * constant. Found 2026-08-19 alongside the vote-value fix (vote.ts) while
+ * designing the observer-advantage experiment: `buildTransaction` previously
+ * hardcoded maxFeePerGas/maxPriorityFeePerGas to the exact same value for
+ * every transaction, which is the identical class of bug as the fixed vote
+ * value — real Ethereum gas prices vary with network conditions and wallet
+ * defaults, so an identical fee on every vote is itself a distinguishing
+ * signal, independent of anything the nonce/signature layer does correctly.
+ * Not cryptographic randomness — this is public fee material, not key material.
+ */
+export function sampleGasFees(): { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } {
+  const baseFeeGwei = 15 + Math.random() * 30; // ~15-45 gwei, a plausible Sepolia/L1 range
+  const priorityFeeGwei = 1 + Math.random() * 3; // ~1-4 gwei tip
+  return {
+    maxFeePerGas: BigInt(Math.floor(baseFeeGwei * 1e9)),
+    maxPriorityFeePerGas: BigInt(Math.floor(priorityFeeGwei * 1e9)),
+  };
+}
+
+/**
+ * Build an unsigned EIP-1559 transaction object. Fee fields default to a
+ * jittered sample (sampleGasFees) rather than a fixed constant — pass
+ * `feeOverride` to use real network-derived fees instead (e.g. from
+ * getGasPrices() below), which castVote()'s live/online path does.
  */
 export function buildTransaction(
   from: string,
   to: string,
   value: bigint,
   nonce: number,
-  chainId: number = SEPOLIA_CHAIN_ID
+  chainId: number = SEPOLIA_CHAIN_ID,
+  feeOverride?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }
 ): UnsignedTx {
+  const fees = feeOverride ?? sampleGasFees();
   return {
     to,
     from,
@@ -51,9 +76,12 @@ export function buildTransaction(
     nonce,
     chainId,
     type: 2, // EIP-1559
-    maxFeePerGas: 30_000_000_000n, // 30 gwei
-    maxPriorityFeePerGas: 2_000_000_000n, // 2 gwei
-    gasLimit: 21_000n, // simple ETH transfer
+    maxFeePerGas: fees.maxFeePerGas,
+    maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    gasLimit: 21_000n, // simple ETH transfer — NOT changed: this is the real protocol-level
+    // floor for a plain transfer with no calldata, and a huge fraction of real
+    // ordinary transfers also use exactly this value, so unlike value/fees it
+    // is not a distinguishing signal.
   };
 }
 

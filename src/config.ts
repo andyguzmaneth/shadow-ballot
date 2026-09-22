@@ -7,8 +7,48 @@
 
 export const SEPOLIA_CHAIN_ID = 11155111;
 
-// Set to deployed contract address on Sepolia (update after deployment)
+// ShadowBallot.sol (the simple, non-Governor contract) — still a placeholder;
+// the real deployment (2026-09-03) targeted ShadowBallotGovernor below instead,
+// which supersedes it. Not redeployed since it isn't the live path.
 export const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * ERC5564Announcer — deployed to Sepolia 2026-09-03 via `scripts/deploy-all-sepolia.cjs`.
+ * Real bytecode verified on-chain (`eth_getCode`) at deployment time.
+ * See `sepolia-deployment.json` for the full deployment record.
+ * Prefer the real canonical singleton (0x55649E01B5Df198D18D95b5cc5051630cfD45564
+ * on mainnet/several L2s — verify Sepolia deployment before assuming) over this
+ * project-local instance for a real production deployment, so announcements
+ * share the real cross-application anonymity set. This address is fine for the
+ * dissertation PoC, which is what it's for.
+ */
+export const ANNOUNCER_ADDRESS = '0x6678E6d570ae92c0bd49bfaAeb035A3C45AbF37a';
+
+/** MockGovernanceToken — real OZ ERC20Votes, deployed to Sepolia 2026-09-03. */
+export const GOVERNANCE_TOKEN_ADDRESS = '0xceBA65a3E0F2bB9Ba6e57b70A87D087404015fE6';
+
+/** Groth16Verifier, exported from the real compiled circuit — deployed 2026-09-03. */
+export const ELIGIBILITY_VERIFIER_ADDRESS = '0xf86CDC34ec3456dAd0044f405684BB7AfFd6232f';
+
+/**
+ * VoterRegistry — deployed 2026-09-03. NOTE: this instance's snapshot block predates
+ * the token mint, so nobody can ever register against it (found live, 2026-09-03 —
+ * see Ch4 §4.8 / Ch6 §6.6). A corrected VoterRegistry with a post-mint snapshot was
+ * redeployed live during that lifecycle run, but VoterRegistry isn't wired into
+ * ShadowBallotGovernor directly (the lifecycle doesn't call through it), so this
+ * wasn't blocking — the corrected instance's address was only printed to stdout and
+ * wasn't captured into a persistent record. This address is stale; don't rely on it
+ * for voter registration without redeploying.
+ */
+export const VOTER_REGISTRY_ADDRESS = '0x5cA7d0dacC3aca48f5fe1C311dE593159bD9bCA6';
+
+/** ShadowBallotGovernor — the real, live deployment target. Deployed 2026-09-03. */
+export const SHADOW_BALLOT_GOVERNOR_ADDRESS = '0x144A60a0a237fB55374c59aF2537877f3cc63666';
+
+export const ERC5564_ANNOUNCER_ABI = [
+  'function announce(uint256 schemeId, address stealthAddress, bytes ephemeralPubKey, bytes metadata)',
+  'event Announcement(uint256 indexed schemeId, address indexed stealthAddress, address indexed caller, bytes ephemeralPubKey, bytes metadata)',
+] as const;
 
 /**
  * Demo coordinator keys storage key.

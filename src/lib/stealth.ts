@@ -10,10 +10,20 @@
 
 import { Point, getPublicKey, etc, utils } from '@noble/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes, concatBytes } from '@noble/hashes/utils.js';
 
 // secp256k1 curve order
 const N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+
+/**
+ * Domain tag for the stealth-address offset derivation.
+ * The raw ECDH point s_ecdh is used for two purposes in this protocol: deriving the
+ * stealth-address offset (here, tag 0x01) and deriving the anamorphic nonce key
+ * (vote.ts, tag 0x02). Without this tag both derivations would be the same value,
+ * coupling two independent uses of one secret with no cryptographic separation
+ * (dissertation Ch3, finding #7 from the 2026-08-17 adversarial review).
+ */
+const DOMAIN_STEALTH_ADDR = new Uint8Array([0x01]);
 
 function bytesToBigint(bytes: Uint8Array): bigint {
   return BigInt('0x' + bytesToHex(bytes));
@@ -98,7 +108,7 @@ export function generateStealthAddress(metaAddress: string): StealthAddressResul
   // ECDH: shared secret = ephemeralPrivKey * viewingPubKey
   const viewingPoint = Point.fromHex(bytesToHex(viewingPubKey));
   const sharedSecretPoint = viewingPoint.multiply(bytesToBigint(ephemeralPrivKey));
-  const sharedSecret = keccak_256(sharedSecretPoint.toBytes(true));
+  const sharedSecret = keccak_256(concatBytes(DOMAIN_STEALTH_ADDR, sharedSecretPoint.toBytes(true)));
 
   // Stealth public key: spendingPubKey + hash(sharedSecret) * G
   const stealthOffset = bytesToBigint(sharedSecret);
@@ -124,7 +134,7 @@ export function generateStealthAddressFromKeys(
 
   const viewingPoint = Point.fromHex(bytesToHex(viewingPubKey));
   const sharedSecretPoint = viewingPoint.multiply(bytesToBigint(ephemeralPrivKey));
-  const sharedSecret = keccak_256(sharedSecretPoint.toBytes(true));
+  const sharedSecret = keccak_256(concatBytes(DOMAIN_STEALTH_ADDR, sharedSecretPoint.toBytes(true)));
 
   const stealthOffset = bytesToBigint(sharedSecret);
   const offsetPoint = Point.BASE.multiply(etc.mod(stealthOffset, N));
@@ -154,7 +164,7 @@ export function scanForStealthTx(
     // ECDH: shared secret = viewingPrivKey * ephemeralPubKey
     const ephemeralPoint = Point.fromHex(bytesToHex(ephemeralPubKey));
     const sharedSecretPoint = ephemeralPoint.multiply(bytesToBigint(viewingPrivKey));
-    const sharedSecret = keccak_256(sharedSecretPoint.toBytes(true));
+    const sharedSecret = keccak_256(concatBytes(DOMAIN_STEALTH_ADDR, sharedSecretPoint.toBytes(true)));
 
     // Stealth public key: spendingPubKey + hash(sharedSecret) * G
     const stealthOffset = bytesToBigint(sharedSecret);
@@ -184,7 +194,7 @@ export function computeStealthPrivateKey(
   // ECDH: shared secret = viewingPrivKey * ephemeralPubKey
   const ephemeralPoint = Point.fromHex(bytesToHex(ephemeralPubKey));
   const sharedSecretPoint = ephemeralPoint.multiply(bytesToBigint(viewingPrivKey));
-  const sharedSecret = keccak_256(sharedSecretPoint.toBytes(true));
+  const sharedSecret = keccak_256(concatBytes(DOMAIN_STEALTH_ADDR, sharedSecretPoint.toBytes(true)));
 
   // stealthPrivKey = spendingPrivKey + hash(sharedSecret) mod n
   const spendingScalar = bytesToBigint(spendingPrivKey);

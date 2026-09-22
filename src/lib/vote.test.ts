@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Transaction } from 'ethers';
 import { utils } from '@noble/secp256k1';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
@@ -239,5 +240,41 @@ describe('end-to-end: castVoteOffline + decodeVote', () => {
       '0x0000000000000000000000000000000000000000'
     );
     expect(isNotMatch).toBe(false);
+  });
+});
+
+describe('vote transfer value is not a fixed constant (Ch5 observer-advantage fix, 2026-08-19)', () => {
+  it('produces different transaction values across votes, not one hardcoded amount', () => {
+    // Previously VOTE_VALUE was a hardcoded 0.001 ETH for every vote — a
+    // trivial 100%-accurate distinguishing signal for any chain observer,
+    // independent of the nonce/signature cryptography. This test fails
+    // against the old constant (all values identical) and passes now that
+    // each vote samples its own cover value.
+    const coordinator = generateStealthKeys();
+    const values = new Set<string>();
+
+    for (let i = 0; i < 8; i++) {
+      const voterPrivKey = utils.randomSecretKey();
+      const ephemeralPrivKey = utils.randomSecretKey();
+      const result = castVoteOffline(voterPrivKey, coordinator.metaAddress, 1, VOTE_YES, ephemeralPrivKey);
+      const tx = Transaction.from(result.signedTxHex);
+      values.add(tx.value.toString());
+    }
+
+    // 8 independent samples from a continuous log-uniform distribution
+    // colliding would be astronomically unlikely if this is working —
+    // treat any collision as a real regression, not sampling noise.
+    expect(values.size).toBe(8);
+  });
+
+  it('stays within the intended plausible-transfer bounds (0.0001 - 0.01 ETH)', () => {
+    const coordinator = generateStealthKeys();
+    const voterPrivKey = utils.randomSecretKey();
+    const ephemeralPrivKey = utils.randomSecretKey();
+    const result = castVoteOffline(voterPrivKey, coordinator.metaAddress, 1, VOTE_YES, ephemeralPrivKey);
+    const tx = Transaction.from(result.signedTxHex);
+
+    expect(tx.value).toBeGreaterThanOrEqual(100_000_000_000_000n);
+    expect(tx.value).toBeLessThanOrEqual(10_000_000_000_000_000n);
   });
 });

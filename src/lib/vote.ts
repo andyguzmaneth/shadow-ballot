@@ -17,7 +17,7 @@
 
 import { Point, etc, getPublicKey } from '@noble/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes, concatBytes } from '@noble/hashes/utils.js';
 import { deriveNonceFromSecret } from './anamorphic.js';
 import {
   generateStealthAddressFromKeys,
@@ -28,6 +28,8 @@ import {
   signTransactionWithCustomK,
   broadcastTransaction,
   getTransactionCount,
+  getGasPrices,
+  SEPOLIA_CHAIN_ID,
 } from './tx.js';
 import { Transaction } from 'ethers';
 import { utils } from '@noble/secp256k1';
@@ -40,8 +42,34 @@ export const VOTE_YES = 0x01;
 export const VOTE_NO = 0x02;
 export const VOTE_ABSTAIN = 0x03;
 
-// Vote amount: 0.001 ETH in wei
-const VOTE_VALUE = 1_000_000_000_000_000n; // 0.001 ETH
+// Bounds for the randomized cover-transfer value — see sampleVoteValue() below.
+// Was a hardcoded 1_000_000_000_000_000n (0.001 ETH) constant until 2026-08-19:
+// found while designing the observer-advantage experiment (dissertation Ch5
+// §5.2) that a fixed value makes every vote transaction identical in amount —
+// a 100%-accurate distinguishing signal an observer could use with zero
+// cryptanalysis, regardless of how sound the nonce/signature layer is.
+const MIN_VOTE_VALUE_WEI = 100_000_000_000_000n; // 0.0001 ETH
+const MAX_VOTE_VALUE_WEI = 10_000_000_000_000_000n; // 0.01 ETH
+
+/**
+ * Sample a plausible-looking small ETH transfer amount, log-uniformly within
+ * [MIN_VOTE_VALUE_WEI, MAX_VOTE_VALUE_WEI] — log-uniform because real transfer
+ * amounts cluster across multiple orders of magnitude, not evenly across a
+ * linear range, so a uniform linear sample would itself be a subtler version
+ * of the same distinguishing-signal problem. Uses Math.random(), not a CSPRNG
+ * — this value is public cover material, not key material, so it doesn't need
+ * cryptographic unpredictability, only non-constancy.
+ *
+ * Caveat, stated honestly: this is an approximation of "looks like an ordinary
+ * transfer," not a fit to real measured Ethereum transfer-value distributions
+ * — a stretch goal, not done here.
+ */
+export function sampleVoteValue(): bigint {
+  const minLog = Math.log(Number(MIN_VOTE_VALUE_WEI));
+  const maxLog = Math.log(Number(MAX_VOTE_VALUE_WEI));
+  const sampledLog = minLog + Math.random() * (maxLog - minLog);
+  return BigInt(Math.floor(Math.exp(sampledLog)));
+}
 
 export type VoteChoice = typeof VOTE_YES | typeof VOTE_NO | typeof VOTE_ABSTAIN;
 
@@ -96,10 +124,20 @@ export function buildCandidateSet(proposalIds: number[]): Uint8Array[] {
 }
 
 /**
- * Derive the ECDH shared secret between an ephemeral key and the coordinator's viewing key.
- * This is the same secret used for both stealth address and anamorphic nonce.
+ * Domain tag for the anamorphic nonce-key derivation. Deliberately distinct from
+ * stealth.ts's DOMAIN_STEALTH_ADDR (0x01) — both start from the same raw ECDH point,
+ * but must diverge into cryptographically separated values before either is used
+ * (dissertation Ch3, finding #7 from the 2026-08-17 adversarial review; previously
+ * both uses shared one untagged keccak256(point) value).
+ */
+const DOMAIN_NONCE_KEY = new Uint8Array([0x02]);
+
+/**
+ * Derive the ECDH shared secret between an ephemeral key and the coordinator's viewing key,
+ * domain-separated (tag 0x02) for use as the anamorphic nonce key specifically — NOT reusable
+ * as the stealth-address offset, which uses a different tag (stealth.ts, DOMAIN_STEALTH_ADDR).
  *
- * Sender side: sharedSecret = keccak256(ephemeralPrivKey * viewingPubKey)
+ * Sender side: nonceKey = keccak256(0x02 || ephemeralPrivKey * viewingPubKey)
  */
 function deriveSharedSecret(
   ephemeralPrivKey: Uint8Array,
@@ -107,12 +145,12 @@ function deriveSharedSecret(
 ): Uint8Array {
   const viewingPoint = Point.fromHex(bytesToHex(viewingPubKey));
   const sharedSecretPoint = viewingPoint.multiply(bytesToBigint(ephemeralPrivKey));
-  return keccak_256(sharedSecretPoint.toBytes(true));
+  return keccak_256(concatBytes(DOMAIN_NONCE_KEY, sharedSecretPoint.toBytes(true)));
 }
 
 /**
- * Derive the ECDH shared secret from the coordinator side.
- * Coordinator side: sharedSecret = keccak256(viewingPrivKey * ephemeralPubKey)
+ * Derive the ECDH shared secret from the coordinator side, same domain tag as above.
+ * Coordinator side: nonceKey = keccak256(0x02 || viewingPrivKey * ephemeralPubKey)
  */
 function deriveSharedSecretCoordinator(
   viewingPrivKey: Uint8Array,
@@ -120,7 +158,7 @@ function deriveSharedSecretCoordinator(
 ): Uint8Array {
   const ephemeralPoint = Point.fromHex(bytesToHex(ephemeralPubKey));
   const sharedSecretPoint = ephemeralPoint.multiply(bytesToBigint(viewingPrivKey));
-  return keccak_256(sharedSecretPoint.toBytes(true));
+  return keccak_256(concatBytes(DOMAIN_NONCE_KEY, sharedSecretPoint.toBytes(true)));
 }
 
 export interface CastVoteResult {
@@ -178,12 +216,20 @@ export async function castVote(
   const nonce = await getTransactionCount(voterAddress);
   console.log(`[castVote] Voter nonce: ${nonce}`);
 
-  // 6. Build the transaction
+  // 6. Build the transaction — real network-derived gas fees (via getGasPrices,
+  // which reflects the actual current base fee) rather than a fixed constant,
+  // for the same reason the vote value is now sampled rather than fixed
+  // (2026-08-19, see MIN/MAX_VOTE_VALUE_WEI above): a hardcoded fee on every
+  // vote is a distinguishing signal, real network fees vary naturally on their
+  // own so this is the online path's equivalent fix.
+  const gasFees = await getGasPrices();
   const unsignedTx = buildTransaction(
     voterAddress,
     stealthResult.stealthAddress,
-    VOTE_VALUE,
-    nonce
+    sampleVoteValue(),
+    nonce,
+    SEPOLIA_CHAIN_ID,
+    gasFees
   );
 
   // 7. Derive the anamorphic nonce k from shared secret + vote data
@@ -251,7 +297,7 @@ export function castVoteOffline(
   const unsignedTx = buildTransaction(
     voterAddress,
     stealthResult.stealthAddress,
-    VOTE_VALUE,
+    sampleVoteValue(),
     nonce
   );
 

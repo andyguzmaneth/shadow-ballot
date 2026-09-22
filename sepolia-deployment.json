@@ -1,0 +1,11 @@
+{
+  "network": "sepolia",
+  "deployedAt": "2026-09-03T21:50:01.549Z",
+  "addresses": {
+    "MockGovernanceToken": "0xceBA65a3E0F2bB9Ba6e57b70A87D087404015fE6",
+    "ERC5564Announcer": "0x6678E6d570ae92c0bd49bfaAeb035A3C45AbF37a",
+    "Groth16Verifier": "0xf86CDC34ec3456dAd0044f405684BB7AfFd6232f",
+    "VoterRegistry": "0x5cA7d0dacC3aca48f5fe1C311dE593159bD9bCA6",
+    "ShadowBallotGovernor": "0x144A60a0a237fB55374c59aF2537877f3cc63666"
+  }
+}
