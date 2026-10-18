@@ -10,6 +10,7 @@ pragma solidity ^0.8.24;
  */
 interface IVotesSnapshot {
     function getPastVotes(address account, uint256 blockNumber) external view returns (uint256);
+    function getVotes(address account) external view returns (uint256);
 }
 
 /**
@@ -36,18 +37,34 @@ interface IVotesSnapshot {
  * participation are separate facts. One registration covers all future
  * proposals; the per-proposal nullifier (in the circuit) is what prevents
  * double-voting, not re-registration.
+ *
+ * WHAT THIS CONTRACT DOES NOT DECIDE (changed 2026-10-18). Registration binds
+ * an address to a commitment. It does NOT decide eligibility for any given
+ * proposal. The original version gated registration on
+ * getPastVotes(msg.sender, snapshotBlock) for one immutable snapshotBlock
+ * fixed at deployment, which broke OpenZeppelin Governor's semantics in two
+ * directions: a holder who registered and then sold every token could still
+ * prove eligibility on every future proposal, and anyone who acquired tokens
+ * after that block could never register at all. (The 2026-09-03 Sepolia
+ * deployment hit the second one in its crudest form: its snapshot block
+ * predated the token mint, so nobody could ever register against it.)
+ *
+ * Eligibility is now decided per proposal, where Governor decides it: the
+ * coordinator builds that proposal's Merkle tree from the registered
+ * commitments of addresses holding voting power at proposalSnapshot(id), and
+ * publishes the root via setEligibilityRoot. commitmentOf is public and
+ * VoterRegistered is emitted, so anyone can rebuild the tree and check the
+ * root. The gate below is a spam check only, not an eligibility decision.
  */
 contract VoterRegistry {
     IVotesSnapshot public immutable token;
-    uint256 public immutable snapshotBlock;
 
     mapping(address => bytes32) public commitmentOf;
 
     event VoterRegistered(address indexed voter, bytes32 commitment);
 
-    constructor(address _token, uint256 _snapshotBlock) {
+    constructor(address _token) {
         token = IVotesSnapshot(_token);
-        snapshotBlock = _snapshotBlock;
     }
 
     /**
@@ -56,7 +73,13 @@ contract VoterRegistry {
     function register(bytes32 commitment) external {
         require(commitmentOf[msg.sender] == bytes32(0), "already registered");
         require(commitment != bytes32(0), "commitment cannot be zero");
-        require(token.getPastVotes(msg.sender, snapshotBlock) > 0, "not eligible at snapshot");
+        // Spam gate, NOT an eligibility decision: the caller must hold voting
+        // power at the time it registers, so the registry cannot be filled by
+        // addresses that have never held the token. Whether a registrant is
+        // eligible for a PARTICULAR proposal is settled off-chain, against
+        // that proposal's own snapshot, when its Merkle tree is built. See the
+        // contract notice above.
+        require(token.getVotes(msg.sender) > 0, "no voting power at registration");
 
         commitmentOf[msg.sender] = commitment;
         emit VoterRegistered(msg.sender, commitment);

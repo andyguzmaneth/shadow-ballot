@@ -12,13 +12,24 @@ import "./VoterRegistry.sol";
  */
 contract MockVotesToken is IVotesSnapshot {
     mapping(address => mapping(uint256 => uint256)) private votesAtBlock;
+    mapping(address => uint256) private currentVotes;
 
     /// Test helper: set an account's recorded voting power as of `blockNumber`.
     function setPastVotes(address account, uint256 blockNumber, uint256 amount) external {
         votesAtBlock[account][blockNumber] = amount;
     }
 
+    /// Test helper: set an account's CURRENT voting power, which is what
+    /// VoterRegistry's spam gate reads.
+    function setVotes(address account, uint256 amount) external {
+        currentVotes[account] = amount;
+    }
+
     function getPastVotes(address account, uint256 blockNumber) external view returns (uint256) {
         return votesAtBlock[account][blockNumber];
+    }
+
+    function getVotes(address account) external view returns (uint256) {
+        return currentVotes[account];
     }
 }

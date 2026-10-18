@@ -44,7 +44,7 @@ describe("Gas benchmarks (Ch5 evaluation data, 2026-08-19)", function () {
     await mine(1);
 
     const Registry = await ethers.getContractFactory("VoterRegistry");
-    const registry = await Registry.deploy(await token.getAddress(), snapshotBlock);
+    const registry = await Registry.deploy(await token.getAddress());
     await registry.waitForDeployment();
 
     const Governor = await ethers.getContractFactory("ShadowBallotGovernor");

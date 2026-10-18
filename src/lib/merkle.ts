@@ -136,3 +136,46 @@ export function verifyMerkleProof(leaf: bigint, proof: MerkleProof, root: bigint
 export function computeNullifier(secret: bigint, proposalId: bigint, hasher: PoseidonHasher): bigint {
   return hasher.hash2(secret, proposalId);
 }
+
+/**
+ * One address's registration, as read from VoterRegistry's `VoterRegistered`
+ * events. The commitment is public and so is the address, which is what lets
+ * anyone rebuild a proposal's eligibility tree and check the published root.
+ */
+export interface Registration {
+  address: string;
+  /** The voter's secret, known only to them. Present only for one's own row. */
+  secret?: bigint;
+  /** Poseidon(secret), as recorded on chain. */
+  commitment: bigint;
+}
+
+/**
+ * Select the registrations that count for ONE proposal.
+ *
+ * Registration binds an address to a commitment, permanently, and decides
+ * nothing about any particular proposal (VoterRegistry.sol, changed
+ * 2026-10-18). Eligibility is settled here instead, against that proposal's
+ * own snapshot block, which is where OpenZeppelin Governor settles it:
+ * `getPastVotes(account, proposalSnapshot(proposalId))`.
+ *
+ * Building the tree from every registration ever made, as the first version
+ * did, breaks Governor's semantics in both directions. A holder who registered
+ * and then sold every token could still prove eligibility on every future
+ * proposal; anyone who acquired tokens after one fixed block could never
+ * register at all.
+ *
+ * @param registrations every address that has ever registered
+ * @param votingPowerAt returns an address's voting power at the proposal's
+ *        snapshot block, i.e. `token.getPastVotes(address, snapshotBlock)`
+ */
+export async function selectEligibleForProposal(
+  registrations: Registration[],
+  votingPowerAt: (address: string) => Promise<bigint>
+): Promise<Registration[]> {
+  const kept: Registration[] = [];
+  for (const r of registrations) {
+    if ((await votingPowerAt(r.address)) > 0n) kept.push(r);
+  }
+  return kept;
+}

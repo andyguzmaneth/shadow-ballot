@@ -4,7 +4,9 @@ import {
   EligibilityMerkleTree,
   verifyMerkleProof,
   computeNullifier,
+  selectEligibleForProposal,
   type PoseidonHasher,
+  type Registration,
 } from './merkle.js';
 
 /**
@@ -97,5 +99,49 @@ describe('nullifier (double-vote guard)', () => {
     const nVoterA = computeNullifier(42n, 7n, hasher);
     const nVoterB = computeNullifier(99n, 7n, hasher);
     expect(nVoterA).not.toBe(nVoterB);
+  });
+});
+
+/**
+ * Per-proposal eligibility selection. Registration is permanent and decides
+ * nothing; a proposal's tree is built from the registrants holding voting
+ * power at THAT proposal's snapshot (VoterRegistry.sol, changed 2026-10-18).
+ */
+describe('selectEligibleForProposal', () => {
+  const reg = (address: string, commitment: bigint): Registration => ({ address, commitment });
+  const ALL: Registration[] = [
+    reg('0xaaa', 1n), // holds at both snapshots
+    reg('0xbbb', 2n), // sold between the two
+    reg('0xccc', 3n), // bought in between the two
+  ];
+
+  const powerAt = (balances: Record<string, bigint>) => async (a: string) => balances[a] ?? 0n;
+
+  it('keeps only the registrants with voting power at that proposal snapshot', async () => {
+    const kept = await selectEligibleForProposal(ALL, powerAt({ '0xaaa': 100n, '0xbbb': 50n }));
+    expect(kept.map((r) => r.address)).toEqual(['0xaaa', '0xbbb']);
+  });
+
+  it('drops a registrant who sold every token after registering', async () => {
+    // The first half of the bug found 2026-10-18: before this, a holder could
+    // register, sell out, and still prove eligibility on every later proposal.
+    const kept = await selectEligibleForProposal(ALL, powerAt({ '0xaaa': 100n, '0xccc': 10n }));
+    expect(kept.map((r) => r.address)).toEqual(['0xaaa', '0xccc']);
+    expect(kept.map((r) => r.address)).not.toContain('0xbbb');
+  });
+
+  it('includes a registrant who acquired tokens after registering', async () => {
+    // The second half: a single immutable snapshot block locked these out for good.
+    const kept = await selectEligibleForProposal(ALL, powerAt({ '0xccc': 10n }));
+    expect(kept.map((r) => r.address)).toEqual(['0xccc']);
+  });
+
+  it('gives two proposals different trees when the holder set moves between them', async () => {
+    const hasher = await buildPoseidonHasher();
+    const keptA = await selectEligibleForProposal(ALL, powerAt({ '0xaaa': 1n, '0xbbb': 1n }));
+    const keptB = await selectEligibleForProposal(ALL, powerAt({ '0xaaa': 1n, '0xccc': 1n }));
+    const treeA = await EligibilityMerkleTree.build(keptA.map((r) => r.commitment), 4, hasher);
+    const treeB = await EligibilityMerkleTree.build(keptB.map((r) => r.commitment), 4, hasher);
+    expect(treeA.root).not.toBe(treeB.root);
   });
 });
