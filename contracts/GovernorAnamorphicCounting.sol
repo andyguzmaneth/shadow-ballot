@@ -67,6 +67,10 @@ abstract contract GovernorAnamorphicCounting is Governor {
     // so submitAnamorphicTally can check a nullifier was registered for THIS
     // proposal specifically, not merely registered somewhere.
     mapping(bytes32 => uint256) private _nullifierRegisteredForProposal;
+    /// How many nullifiers have been registered for a proposal. The tally must
+    /// cite every one of them, so a coordinator cannot drop the voters whose
+    /// choices it dislikes. See submitAnamorphicTally.
+    mapping(uint256 proposalId => uint256) private _registeredNullifierCount;
     mapping(bytes32 => bool) private _nullifierUsed;
     mapping(uint256 proposalId => bytes32) private _eligibilityRoot;
 
@@ -113,6 +117,8 @@ abstract contract GovernorAnamorphicCounting is Governor {
     error EligibilityRootNotSet(uint256 proposalId);
     error ProposalIdMismatch(uint256 expected, uint256 got);
     error NullifierNotRegisteredForProposal(bytes32 nullifier, uint256 proposalId);
+    error TallyOmitsRegisteredVoters(uint256 cited, uint256 registered);
+    error NullifiersNotStrictlyAscending(uint256 index);
 
     constructor(address _coordinator, IEligibilityVerifier _eligibilityVerifier) {
         coordinator = _coordinator;
@@ -149,6 +155,12 @@ abstract contract GovernorAnamorphicCounting is Governor {
 
     function nullifierUsed(bytes32 nullifier) public view returns (bool) {
         return _nullifierUsed[nullifier];
+    }
+
+    /// @notice How many eligibility nullifiers have been registered for a
+    ///         proposal. A submitted tally must cite exactly this many.
+    function registeredNullifierCount(uint256 proposalId) external view returns (uint256) {
+        return _registeredNullifierCount[proposalId];
     }
 
     /**
@@ -213,6 +225,7 @@ abstract contract GovernorAnamorphicCounting is Governor {
 
         _nullifierUsed[nullifier] = true;
         _nullifierRegisteredForProposal[nullifier] = proposalId;
+        unchecked { _registeredNullifierCount[proposalId] += 1; }
         emit NullifierRegistered(proposalId, nullifier);
     }
 
@@ -238,10 +251,27 @@ abstract contract GovernorAnamorphicCounting is Governor {
         if (t.tallySubmitted) revert TallyAlreadySubmitted(proposalId);
 
         for (uint256 i = 0; i < nullifiers.length; i++) {
+            // Strictly ascending rules out the same nullifier appearing twice
+            // to pad the count, and costs no storage compared with a seen-set.
+            if (i > 0 && uint256(nullifiers[i]) <= uint256(nullifiers[i - 1])) {
+                revert NullifiersNotStrictlyAscending(i);
+            }
             if (_nullifierRegisteredForProposal[nullifiers[i]] != proposalId) {
                 revert NullifierNotRegisteredForProposal(nullifiers[i], proposalId);
             }
         }
+
+        // The tally must account for EVERY nullifier registered for this
+        // proposal, not a subset the coordinator finds convenient. Without
+        // this a coordinator could watch 100 voters register onchain, decode
+        // all of them, and submit a tally citing only the 40 it liked:
+        // censorship by omission, invisible in the submitted numbers. The
+        // count is public, so anyone can check it against the
+        // NullifierRegistered events.
+        if (nullifiers.length != _registeredNullifierCount[proposalId]) {
+            revert TallyOmitsRegisteredVoters(nullifiers.length, _registeredNullifierCount[proposalId]);
+        }
+
 
         t.forVotes = forVotes;
         t.againstVotes = againstVotes;

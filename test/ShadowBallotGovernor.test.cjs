@@ -207,7 +207,10 @@ describe("ShadowBallotGovernor", function () {
     await registerFakeNullifier(governor, coordinator, proposalId, second);
     await mine(VOTING_PERIOD + 1);
 
-    await governor.connect(coordinator).submitAnamorphicTally(proposalId, ethers.parseEther("50"), 0, 0, [first]);
+    // The tally must cite every registered nullifier, so this submission
+    // carries both. Sorted: submitAnamorphicTally requires strictly ascending.
+    const bothSorted = [first, second].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+    await governor.connect(coordinator).submitAnamorphicTally(proposalId, ethers.parseEther("50"), 0, 0, bothSorted);
 
     await expect(
       governor.connect(coordinator).submitAnamorphicTally(proposalId, ethers.parseEther("999"), 0, 0, [second])
@@ -231,6 +234,40 @@ describe("ShadowBallotGovernor", function () {
     await expect(
       registerFakeNullifier(governor, coordinator, proposalB, sharedNullifier)
     ).to.be.revertedWithCustomError(governor, "NullifierAlreadyUsed");
+  });
+
+  it("submitAnamorphicTally rejects a tally that omits a registered voter", async function () {
+    // Censorship by omission: the coordinator decodes every vote, then cites
+    // only the nullifiers whose choices suit it. Before the completeness
+    // check this was accepted silently.
+    const { governor, coordinator, holder1 } = await deploy();
+    const { proposalId } = await proposeAndAdvanceToActive(governor, holder1);
+    const a = fakeNullifier("omit-a");
+    const b = fakeNullifier("omit-b");
+    await registerFakeNullifier(governor, coordinator, proposalId, a);
+    await registerFakeNullifier(governor, coordinator, proposalId, b);
+    await mine(VOTING_PERIOD + 1);
+
+    expect(await governor.registeredNullifierCount(proposalId)).to.equal(2n);
+
+    await expect(
+      governor.connect(coordinator).submitAnamorphicTally(proposalId, ethers.parseEther("50"), 0, 0, [a])
+    ).to.be.revertedWithCustomError(governor, "TallyOmitsRegisteredVoters");
+  });
+
+  it("submitAnamorphicTally rejects a repeated nullifier padding the count", async function () {
+    const { governor, coordinator, holder1 } = await deploy();
+    const { proposalId } = await proposeAndAdvanceToActive(governor, holder1);
+    const a = fakeNullifier("dup-a");
+    const b = fakeNullifier("dup-b");
+    await registerFakeNullifier(governor, coordinator, proposalId, a);
+    await registerFakeNullifier(governor, coordinator, proposalId, b);
+    await mine(VOTING_PERIOD + 1);
+
+    // Two entries, so the count matches, but the same one twice.
+    await expect(
+      governor.connect(coordinator).submitAnamorphicTally(proposalId, ethers.parseEther("50"), 0, 0, [a, a])
+    ).to.be.revertedWithCustomError(governor, "NullifiersNotStrictlyAscending");
   });
 
   it("submitAnamorphicTally rejects a nullifier registered for a DIFFERENT proposal", async function () {
