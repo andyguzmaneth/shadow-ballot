@@ -7,6 +7,6 @@ export default defineConfig({
     // failing on `describe is not defined` since they use mocha's globals, not
     // vitest's. Two separate test runners for two separate concerns: vitest for the
     // TS crypto/protocol libs in src/, hardhat for the Solidity contracts in test/.
-    exclude: ['**/node_modules/**', 'test/**'],
+    exclude: ['**/node_modules/**', 'test/**', 'spike/**'],
   },
 });

@@ -1,0 +1,16 @@
+scalar multiplication: 0.169 ms
+
+Voter, rejection sampling on r (choice = 2 bits):
+tag bits | expected trials | measured | wall time
+       6 |             256 |      156 | 22 ms
+       8 |            1024 |     1295 | 176 ms
+      10 |            4096 |     3345 | 454 ms
+      12 |           16384 | projected | 2.8 s
+      14 |           65536 | projected | 11.0 s
+      16 |          262144 | projected | 44.2 s
+
+Coordinator, scanning with no stealth address to narrow the search:
+1,000 addresses x 10 txs = 10,000 signatures: kappa 1693 ms + scan 114 ms = 1806 ms (2 tag collisions, expected ~2)
+10,000 addresses x 10 txs = 100,000 signatures: kappa 16777 ms + scan 1131 ms = 17908 ms (23 tag collisions, expected ~24)
+
+done
