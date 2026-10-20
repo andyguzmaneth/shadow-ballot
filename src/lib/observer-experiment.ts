@@ -26,8 +26,12 @@ import { utils, getPublicKey, Point, etc } from '@noble/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { castVoteOffline, VOTE_YES, VOTE_NO, VOTE_ABSTAIN, type VoteChoice } from './vote.js';
+import {
+  sharedSecret, channelKey, stealthAddress,
+  Choice, CURVE_ORDER, bytesToBigint,
+} from './channel.js';
 import { generateStealthKeys } from './stealth.js';
-import { buildTransaction, sampleGasFees } from './tx.js';
+import { buildTransaction, sampleGasFees, signVoteTransaction } from './tx.js';
 import { sampleVoteValue } from './vote.js';
 
 const N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
@@ -269,8 +273,11 @@ export interface ExperimentResult {
   classifier: { trainAccuracy: number; testAccuracy: number; advantage: number };
 }
 
-export async function runObserverAdvantageExperiment(n = 200): Promise<ExperimentResult> {
-  const voteSamples = generateVoteSamples(n);
+export async function runObserverAdvantageExperiment(
+  n = 200,
+  generator: (n: number) => string[] = generateVoteSamples,
+): Promise<ExperimentResult> {
+  const voteSamples = generator(n);
   const controlSamples = await generateControlSamples(n);
 
   const voteFeatures = voteSamples.map(extractFeatures);
@@ -281,4 +288,34 @@ export async function runObserverAdvantageExperiment(n = 200): Promise<Experimen
     featureComparisons: compareFeatures(voteFeatures, controlFeatures),
     classifier: trainAndEvaluateClassifier(voteFeatures, controlFeatures),
   };
+}
+
+/**
+ * Generate `n` real vote transactions under the REDESIGNED protocol: an
+ * ordinary ETH transfer to a stealth address, signed by resampling k until
+ * r carries the vote (Ch3 §3.5.2). This is the live path the Sepolia
+ * lifecycle uses, not a simulation of it.
+ */
+export function generateRChannelVoteSamples(n: number): string[] {
+  const viewPriv = utils.randomSecretKey();
+  const spendPriv = utils.randomSecretKey();
+  const viewPub = getPublicKey(viewPriv, true);
+  const spendPub = getPublicKey(spendPriv, true);
+  const rand = () => bytesToBigint(utils.randomSecretKey()) % CURVE_ORDER;
+  const choices = [Choice.For, Choice.Against, Choice.Abstain];
+
+  const samples: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const voterPriv = utils.randomSecretKey();
+    const voterAddr = randomAddress();  // the `from` field is not serialised into the signed tx
+    const proposalId = BigInt(i % 10) + 1n;
+    const sigma = sharedSecret(voterPriv, viewPub);
+    const cKey = channelKey(sigma, proposalId);
+    const to = stealthAddress(sigma, spendPub, proposalId, 0);
+    const unsigned = buildTransaction(voterAddr, to, sampleVoteValue(), 0, 11155111);
+    const { signedTxHex } = signVoteTransaction(
+      unsigned, voterPriv, cKey, choices[i % 3], rand);
+    samples.push(signedTxHex);
+  }
+  return samples;
 }
