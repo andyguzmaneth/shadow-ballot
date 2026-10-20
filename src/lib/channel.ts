@@ -35,7 +35,8 @@ export const TAG_BITS = 12;
 export const CHOICE_BITS = 2;
 const CODEWORD_BITS = TAG_BITS + CHOICE_BITS;
 
-export enum Choice { Against = 0, For = 1, Abstain = 2 }
+export const Choice = { Against: 0, For: 1, Abstain: 2 } as const;
+export type Choice = (typeof Choice)[keyof typeof Choice];
 
 export function bytesToBigint(b: Uint8Array): bigint {
   let v = 0n;
