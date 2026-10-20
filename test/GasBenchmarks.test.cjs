@@ -1,113 +1,88 @@
 const { ethers } = require("hardhat");
 const { mine } = require("@nomicfoundation/hardhat-network-helpers");
-const realProof = require("../circuits/governor_test_calldata.json");
 
 /**
- * Real gas measurements for Ch5 (Evaluation) — not estimates. Run via
- * `npx hardhat test test/GasBenchmarks.test.cjs`. Deliberately not assertions
- * (no expect() calls) — this is a measurement script structured as a test file
- * so it reuses the same fixtures/tooling, printed for the dissertation to cite
- * directly with a timestamp and network context (Hardhat's default in-memory
- * network gas costs match Sepolia's, since gas cost per opcode is a protocol
- * constant, not something the network varies).
+ * Real gas measurements for Ch5, not estimates. Run via
+ * `npx hardhat test test/GasBenchmarks.test.cjs`. Deliberately assertion-free:
+ * a measurement script structured as a test file so it reuses the fixtures,
+ * printed for the dissertation to cite with a timestamp and network context.
+ * Hardhat's in-memory gas costs match Sepolia's, since cost per opcode is a
+ * protocol constant.
+ *
+ * The protocol's per-vote on-chain cost is now an ORDINARY TRANSFER: there is
+ * no registration, no proof verification and no nullifier (Ch3 §3.4). The only
+ * contract calls left are the coordinator's, once per proposal.
  */
-describe("Gas benchmarks (Ch5 evaluation data, 2026-08-19)", function () {
+describe("Gas benchmarks (Ch5 evaluation data)", function () {
   it("measures gas for the full protocol lifecycle", async function () {
     const [deployer, coordinator, voter, other] = await ethers.getSigners();
     const results = {};
 
     async function measure(label, txPromise) {
-      const tx = await txPromise;
-      const receipt = await tx.wait();
+      const receipt = await (await txPromise).wait();
       results[label] = Number(receipt.gasUsed);
     }
 
-    // --- Deployments ---
     const Token = await ethers.getContractFactory("MockGovernanceToken");
     const token = await Token.deploy();
     await token.waitForDeployment();
 
-    const Announcer = await ethers.getContractFactory("ERC5564Announcer");
-    const announcer = await Announcer.deploy();
-    await announcer.waitForDeployment();
-
-    const Verifier = await ethers.getContractFactory("Groth16Verifier");
-    const verifier = await Verifier.deploy();
-    await verifier.waitForDeployment();
-
-    // Mint + delegate BEFORE taking the snapshot block — getPastVotes needs a
-    // checkpoint showing nonzero balance strictly before the snapshot, and
-    // strictly before "now" (OZ reverts/reads-zero otherwise). Order matters.
     await (await token.mint(await voter.getAddress(), ethers.parseEther("100"))).wait();
     await (await token.connect(voter).delegate(await voter.getAddress())).wait();
-    const snapshotBlock = await ethers.provider.getBlockNumber();
     await mine(1);
 
-    const Registry = await ethers.getContractFactory("VoterRegistry");
-    const registry = await Registry.deploy(await token.getAddress());
+    const Registry = await ethers.getContractFactory("CoordinatorRegistry");
+    const registry = await Registry.deploy();
     await registry.waitForDeployment();
 
     const Governor = await ethers.getContractFactory("ShadowBallotGovernor");
-    const governorDeployTx = await Governor.getDeployTransaction(
-      await token.getAddress(),
-      await coordinator.getAddress(),
-      await verifier.getAddress(),
-      1,
-      50,
-      0,
-      4
+    const deployTx = await Governor.getDeployTransaction(
+      await token.getAddress(), await coordinator.getAddress(), 1, 50, 0, 4
     );
-    const governorDeployReceipt = await (await deployer.sendTransaction(governorDeployTx)).wait();
-    results["Deploy: ShadowBallotGovernor (full contract)"] = Number(governorDeployReceipt.gasUsed);
-    const governor = await ethers.getContractAt(
-      "ShadowBallotGovernor",
-      ethers.getCreateAddress({ from: await deployer.getAddress(), nonce: await deployer.getNonce() - 1 })
-    );
+    const deployReceipt = await (await deployer.sendTransaction(deployTx)).wait();
+    results["Deploy: ShadowBallotGovernor (full contract)"] = Number(deployReceipt.gasUsed);
+    const governor = await ethers.getContractAt("ShadowBallotGovernor", deployReceipt.contractAddress);
 
-    // --- Per-operation costs ---
-    await measure("VoterRegistry.register()", registry.connect(voter).register(ethers.keccak256(ethers.toUtf8Bytes("commitment"))));
-
+    // Setup, once per DAO: the coordinator publishes its meta-address.
     await measure(
-      "ERC5564Announcer.announce() — publishing R for one vote",
-      announcer.connect(voter).announce(1, await other.getAddress(), "0x02" + "ab".repeat(32), "0x00")
+      "CoordinatorRegistry.publish() — once per DAO, Ch3 §3.4.2 step 1",
+      registry.connect(coordinator).publish("0x02" + "ab".repeat(32), "0x03" + "cd".repeat(32))
     );
 
-    const proposeTx = await governor
-      .connect(voter)
-      .propose([ethers.ZeroAddress], [0n], ["0x"], "Governor+ZK integration test proposal");
+    const proposeTx = await governor.connect(voter)
+      .propose([ethers.ZeroAddress], [0n], ["0x"], "Gas benchmark proposal");
     const proposeReceipt = await proposeTx.wait();
-    results["Governor.propose()"] = Number(proposeReceipt.gasUsed);
+    results["Governor.propose() — per proposal"] = Number(proposeReceipt.gasUsed);
+    const ev = proposeReceipt.logs
+      .map((l) => { try { return governor.interface.parseLog(l); } catch { return null; } })
+      .find((e) => e && e.name === "ProposalCreated");
+    const proposalId = ev.args.proposalId;
 
     await mine(2);
 
-    const proposalId = 12280267269118964162074120570471313527636478466938788729469457698995197180351n;
-    const root = "0x" + BigInt(realProof.pubSignals[0]).toString(16).padStart(64, "0");
-    await measure("GovernorAnamorphicCounting.setEligibilityRoot()", governor.connect(coordinator).setEligibilityRoot(proposalId, root));
-
+    // THE VOTE. An ordinary ETH transfer to a stealth address, no calldata.
+    // This is the entire on-chain cost a voter pays (Ch3 §3.4.3 step 4).
     await measure(
-      "GovernorAnamorphicCounting.registerEligibleNullifier() — includes on-chain Groth16 verification, the expensive one",
-      governor.registerEligibleNullifier(proposalId, realProof.pA, realProof.pB, realProof.pC, realProof.pubSignals)
+      "A VOTE: plain ETH transfer to a stealth address, no calldata",
+      voter.sendTransaction({ to: await other.getAddress(), value: ethers.parseEther("0.0013") })
     );
 
     await mine(51);
 
-    const nullifier = "0x" + BigInt(realProof.pubSignals[1]).toString(16).padStart(64, "0");
     await measure(
-      "GovernorAnamorphicCounting.submitAnamorphicTally() — 1 nullifier",
-      governor.connect(coordinator).submitAnamorphicTally(proposalId, ethers.parseEther("50"), 0, 0, [nullifier])
+      "GovernorAnamorphicCounting.submitAnamorphicTally() — per proposal",
+      governor.connect(coordinator).submitAnamorphicTally(
+        proposalId, ethers.parseEther("50"), 0, 0, ethers.keccak256(ethers.toUtf8Bytes("root"))
+      )
     );
 
-    console.log("\n=== GAS BENCHMARK RESULTS (2026-08-19, Hardhat in-memory network) ===");
-    for (const [label, gas] of Object.entries(results)) {
-      console.log(`${label}: ${gas.toLocaleString()} gas`);
-    }
-    console.log("=======================================================\n");
+    console.log("\n=== GAS BENCHMARK RESULTS (Hardhat in-memory network) ===");
+    for (const [k, v] of Object.entries(results)) console.log(`${k}: ${v.toLocaleString()} gas`);
+    console.log("=========================================================\n");
   });
 
-  it("measures the vanilla OpenZeppelin Governor baseline (Ch5 §5.3 comparative matrix)", async function () {
+  it("measures the vanilla OpenZeppelin Governor baseline (Ch5 §5.3)", async function () {
     const [deployer, voter] = await ethers.getSigners();
-    const results = {};
-
     const Token = await ethers.getContractFactory("MockGovernanceToken");
     const token = await Token.deploy();
     await token.waitForDeployment();
@@ -116,36 +91,23 @@ describe("Gas benchmarks (Ch5 evaluation data, 2026-08-19)", function () {
     await mine(1);
 
     const Vanilla = await ethers.getContractFactory("VanillaGovernor");
-    const vanillaDeployTx = await Vanilla.getDeployTransaction(await token.getAddress(), 1, 50, 0, 4);
-    const vanillaDeployReceipt = await (await deployer.sendTransaction(vanillaDeployTx)).wait();
-    results["Deploy: VanillaGovernor (standard OZ composition, no custom counting)"] = Number(vanillaDeployReceipt.gasUsed);
-    const vanilla = await ethers.getContractAt(
-      "VanillaGovernor",
-      ethers.getCreateAddress({ from: await deployer.getAddress(), nonce: await deployer.getNonce() - 1 })
-    );
+    const deployTx = await Vanilla.getDeployTransaction(await token.getAddress(), 1, 50, 0, 4);
+    const receipt = await (await deployer.sendTransaction(deployTx)).wait();
+    const vanilla = await ethers.getContractAt("VanillaGovernor", receipt.contractAddress);
 
-    const proposeTx = await vanilla.connect(voter).propose([ethers.ZeroAddress], [0n], ["0x"], "Vanilla baseline proposal");
-    const proposeReceipt = await proposeTx.wait();
-    results["VanillaGovernor.propose()"] = Number(proposeReceipt.gasUsed);
-
+    const proposeReceipt = await (await vanilla.connect(voter)
+      .propose([ethers.ZeroAddress], [0n], ["0x"], "Vanilla baseline")).wait();
+    const ev = proposeReceipt.logs
+      .map((l) => { try { return vanilla.interface.parseLog(l); } catch { return null; } })
+      .find((e) => e && e.name === "ProposalCreated");
     await mine(2);
+    const voteReceipt = await (await vanilla.connect(voter).castVote(ev.args.proposalId, 1)).wait();
 
-    const proposalId = await vanilla.hashProposal(
-      [ethers.ZeroAddress],
-      [0n],
-      ["0x"],
-      ethers.keccak256(ethers.toUtf8Bytes("Vanilla baseline proposal"))
-    );
-    const voteTx = await vanilla.connect(voter).castVote(proposalId, 1); // 1 = For
-    const voteReceipt = await voteTx.wait();
-    results["VanillaGovernor.castVote() — the standard per-voter on-chain vote, this dissertation's protocol replaces"] = Number(
-      voteReceipt.gasUsed
-    );
-
-    console.log("\n=== VANILLA GOVERNOR BASELINE (Ch5 §5.3, 2026-08-19) ===");
-    for (const [label, gas] of Object.entries(results)) {
-      console.log(`${label}: ${gas.toLocaleString()} gas`);
-    }
-    console.log("=======================================================\n");
+    console.log("\n=== VANILLA GOVERNOR BASELINE (Ch5 §5.3) ===");
+    console.log("Deploy: VanillaGovernor:", Number(receipt.gasUsed).toLocaleString(), "gas");
+    console.log("VanillaGovernor.propose():", Number(proposeReceipt.gasUsed).toLocaleString(), "gas");
+    console.log("VanillaGovernor.castVote() — the per-voter on-chain vote this protocol replaces:",
+      Number(voteReceipt.gasUsed).toLocaleString(), "gas");
+    console.log("============================================\n");
   });
 });

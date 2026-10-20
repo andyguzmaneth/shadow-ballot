@@ -7,7 +7,7 @@ import {GovernorVotes} from "@openzeppelin/contracts/governance/extensions/Gover
 import {GovernorVotesQuorumFraction} from "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
-import {GovernorAnamorphicCounting, IEligibilityVerifier} from "./GovernorAnamorphicCounting.sol";
+import {GovernorAnamorphicCounting} from "./GovernorAnamorphicCounting.sol";
 
 /**
  * @title ShadowBallotGovernor
@@ -27,7 +27,6 @@ contract ShadowBallotGovernor is
     constructor(
         IVotes token_,
         address coordinator_,
-        IEligibilityVerifier eligibilityVerifier_,
         uint48 votingDelay_,
         uint32 votingPeriod_,
         uint256 proposalThreshold_,
@@ -37,7 +36,7 @@ contract ShadowBallotGovernor is
         GovernorSettings(votingDelay_, votingPeriod_, proposalThreshold_)
         GovernorVotes(token_)
         GovernorVotesQuorumFraction(quorumNumerator_)
-        GovernorAnamorphicCounting(coordinator_, eligibilityVerifier_)
+        GovernorAnamorphicCounting(coordinator_)
     {}
 
     // --- Required overrides where multiple parents define the same function ---
