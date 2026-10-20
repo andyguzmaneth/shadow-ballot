@@ -102,9 +102,20 @@ async function main() {
 
   const nonce = await provider.getTransactionCount(deployer.address);
   const fee = await provider.getFeeData();
+  const value = parseEther('0.0013');
+  // The gas limit is the network's own figure for a plain transfer, not the
+  // 21,000 EVM floor: Sepolia makes a value transfer emit an EIP-7708 log, so
+  // the floor is no longer what an ordinary transfer carries there. Every
+  // plain transfer on the network estimates to the same number, so taking it
+  // from the node keeps the vote indistinguishable rather than marking it.
+  const plainTransferGas = await provider.estimateGas({
+    from: deployer.address, to: addr, value,
+  });
+  log('       plain-transfer gas limit from the node:', plainTransferGas.toString());
   const unsigned = buildTransaction(
-    deployer.address, addr, parseEther('0.0013'), nonce, 11155111,
-    { maxFeePerGas: fee.maxFeePerGas!, maxPriorityFeePerGas: fee.maxPriorityFeePerGas! }
+    deployer.address, addr, value, nonce, 11155111,
+    { maxFeePerGas: fee.maxFeePerGas!, maxPriorityFeePerGas: fee.maxPriorityFeePerGas! },
+    plainTransferGas
   );
   const t0 = Date.now();
   const signed = signVoteTransaction(unsigned, voterPriv, cKey, Choice.For, rand);

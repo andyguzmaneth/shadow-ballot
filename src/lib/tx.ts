@@ -61,13 +61,25 @@ export function sampleGasFees(): { maxFeePerGas: bigint; maxPriorityFeePerGas: b
  * `feeOverride` to use real network-derived fees instead (e.g. from
  * getGasPrices() below), which castVote()'s live/online path does.
  */
+/**
+ * The gas limit a plain ETH transfer carries. Unlike value and fees, this is
+ * NOT jittered: every ordinary transfer on a given network carries the same
+ * figure, so matching it is what keeps a vote indistinguishable, and varying
+ * it is what would stand out. 21,000 is the EVM floor and the right value on
+ * any chain where a value transfer executes no code. Chains that charge more
+ * for a transfer — Sepolia since EIP-7708 makes one emit a log — need the
+ * network's own figure instead, which is why callers can override it.
+ */
+export const PLAIN_TRANSFER_GAS = 21_000n;
+
 export function buildTransaction(
   from: string,
   to: string,
   value: bigint,
   nonce: number,
   chainId: number = SEPOLIA_CHAIN_ID,
-  feeOverride?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }
+  feeOverride?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
+  gasLimit: bigint = PLAIN_TRANSFER_GAS
 ): UnsignedTx {
   const fees = feeOverride ?? sampleGasFees();
   return {
@@ -79,10 +91,7 @@ export function buildTransaction(
     type: 2, // EIP-1559
     maxFeePerGas: fees.maxFeePerGas,
     maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-    gasLimit: 21_000n, // simple ETH transfer — NOT changed: this is the real protocol-level
-    // floor for a plain transfer with no calldata, and a huge fraction of real
-    // ordinary transfers also use exactly this value, so unlike value/fees it
-    // is not a distinguishing signal.
+    gasLimit,
   };
 }
 
