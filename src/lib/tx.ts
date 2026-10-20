@@ -11,6 +11,7 @@
 import { Transaction, Signature, keccak256 as ethersKeccak256 } from 'ethers';
 import { signWithCustomNonce } from './anamorphic.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import { codeword, expectedTag, CHOICE_BITS, CURVE_ORDER } from './channel.js';
 
 // Sepolia chain ID
 const SEPOLIA_CHAIN_ID = 11155111;
@@ -222,3 +223,66 @@ export async function getGasPrices(): Promise<{
 
 // Re-export for convenience
 export { SEPOLIA_CHAIN_ID, SEPOLIA_RPC_URLS };
+
+/**
+ * Sign a vote transaction: resample the nonce until the signature's own r
+ * carries the vote (dissertation Ch3 §3.4.3, step 3).
+ *
+ * This is the only place the protocol departs from ordinary signing, and the
+ * departure is in WHICH signature is kept, not in how any one of them is made.
+ * Rejected attempts never leave this function, so what reaches the network is
+ * one ordinary signature with a uniformly random nonce.
+ */
+export function signVoteTransaction(
+  unsignedTx: UnsignedTx,
+  privateKey: Uint8Array,
+  channelKeyBytes: Uint8Array,
+  choice: number,
+  rng: () => bigint,
+  maxTrials = 1 << 22
+): { signedTxHex: string; txHash: string; r: string; s: string; v: number; trials: number } {
+  const probe = Transaction.from({
+    to: unsignedTx.to,
+    value: unsignedTx.value,
+    nonce: unsignedTx.nonce,
+    chainId: unsignedTx.chainId,
+    type: unsignedTx.type,
+    maxFeePerGas: unsignedTx.maxFeePerGas,
+    maxPriorityFeePerGas: unsignedTx.maxPriorityFeePerGas,
+    gasLimit: unsignedTx.gasLimit,
+  });
+  const msgHash = hexToBytes(probe.unsignedHash.slice(2));
+  const target = (expectedTag(channelKeyBytes) << CHOICE_BITS) | choice;
+
+  for (let trials = 1; trials <= maxTrials; trials++) {
+    const k = rng();
+    if (k <= 0n || k >= CURVE_ORDER) continue;
+    let sig;
+    try {
+      sig = signWithCustomNonce(privateKey, msgHash, k);
+    } catch {
+      continue;                       // degenerate r or s; draw again
+    }
+    if (codeword(channelKeyBytes, BigInt('0x' + sig.r)) !== target) continue;
+
+    const out = Transaction.from({
+      to: unsignedTx.to,
+      value: unsignedTx.value,
+      nonce: unsignedTx.nonce,
+      chainId: unsignedTx.chainId,
+      type: unsignedTx.type,
+      maxFeePerGas: unsignedTx.maxFeePerGas,
+      maxPriorityFeePerGas: unsignedTx.maxPriorityFeePerGas,
+      gasLimit: unsignedTx.gasLimit,
+    });
+    out.signature = Signature.from({
+      r: '0x' + sig.r, s: '0x' + sig.s, yParity: sig.recovery as 0 | 1,
+    });
+    return {
+      signedTxHex: out.serialized,
+      txHash: ethersKeccak256(out.serialized),
+      r: sig.r, s: sig.s, v: sig.recovery, trials,
+    };
+  }
+  throw new Error('no accepting nonce found within maxTrials');
+}

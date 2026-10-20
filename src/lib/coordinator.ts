@@ -82,7 +82,7 @@ export function tally(
   const votes: CountedVote[] = [];
   for (const voter of eligible) {
     const sigma = sharedSecret(viewingPriv, voter.publicKey);
-    const ck = channelKey(sigma, proposalId);
+    const cKey = channelKey(sigma, proposalId);
     let best: CountedVote | null = null;
 
     for (let j = 0; j < MAX_INDEX; j++) {
@@ -93,7 +93,7 @@ export function tally(
 
       // A second transfer to the SAME address is a double vote at one slot and
       // is discarded; only the first is read.
-      const choice = decodeVote(ck, hits[0].r);
+      const choice = decodeVote(cKey, hits[0].r);
       if (choice === null) continue;
       best = { voter: voter.address, index: j, choice,
                leaf: commitmentLeaf(addr, commitmentSalt(sigma, proposalId)) };

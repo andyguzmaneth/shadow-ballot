@@ -5,14 +5,14 @@
  * anything hidden inside the nonce. The voter draws k at random, computes
  * r = (kG)_x, and keeps the first signature whose r satisfies
  *
- *     H(ck ‖ r) truncated  ==  tag ‖ choice
+ *     H(c ‖ r) truncated  ==  tag ‖ choice
  *
  * Rejected attempts never leave the machine. The coordinator reads the vote
  * from the public r and never learns k, so the §3.6.4 key-recovery algebra
  * x = r^-1(s·k − z) is closed to it: recovering k from r is the discrete
  * logarithm.
  *
- * Both ck and the stealth address come from ONE static Diffie–Hellman secret
+ * Both c and the stealth address come from ONE static Diffie–Hellman secret
  * σ = x·V = v·X. Nothing is announced and nothing is registered: V is in the
  * coordinator's registry and X is recoverable from any signature the voter's
  * address has ever produced.
@@ -65,7 +65,7 @@ function kdf(tag: number, sigma: Point, proposalId: bigint, index?: number): Uin
   return keccak_256(concatBytes(...parts));
 }
 
-/** ck = H(0x02 ‖ σ ‖ proposalId). One channel key per voter per proposal. */
+/** channelKey = H(0x02 ‖ σ ‖ proposalId). One channel key per voter per proposal. */
 export function channelKey(sigma: Point, proposalId: bigint): Uint8Array {
   return kdf(TAG_CHANNEL, sigma, proposalId);
 }
@@ -93,14 +93,14 @@ export function stealthAddress(
 }
 
 /** The keyed codeword a candidate r must carry. */
-export function codeword(ck: Uint8Array, r: bigint): number {
-  const h = keccak_256(concatBytes(ck, bigintTo32(r)));
+export function codeword(channelKey: Uint8Array, r: bigint): number {
+  const h = keccak_256(concatBytes(channelKey, bigintTo32(r)));
   return ((h[0] << 16) | (h[1] << 8) | h[2]) >>> (24 - CODEWORD_BITS);
 }
 
 /** The tag is itself keyed, so nothing published is a fixed constant. */
-export function expectedTag(ck: Uint8Array): number {
-  return keccak_256(concatBytes(ck, new Uint8Array([0xff])))[0] & ((1 << TAG_BITS) - 1);
+export function expectedTag(channelKey: Uint8Array): number {
+  return keccak_256(concatBytes(channelKey, new Uint8Array([0xff])))[0] & ((1 << TAG_BITS) - 1);
 }
 
 export interface CarriedSignature { r: bigint; s: bigint; trials: number; }
@@ -110,19 +110,19 @@ export interface CarriedSignature { r: bigint; s: bigint; trials: number; }
  * `rng` is injected so tests are deterministic; production passes a CSPRNG.
  */
 export function signCarryingVote(
-  privateKey: Uint8Array, msgHash: Uint8Array, ck: Uint8Array,
+  privateKey: Uint8Array, msgHash: Uint8Array, channelKey: Uint8Array,
   choice: Choice, rng: () => bigint, maxTrials = 1 << 22
 ): CarriedSignature {
   const x = bytesToBigint(privateKey);
   const z = bytesToBigint(msgHash);
-  const target = (expectedTag(ck) << CHOICE_BITS) | choice;
+  const target = (expectedTag(channelKey) << CHOICE_BITS) | choice;
 
   for (let trials = 1; trials <= maxTrials; trials++) {
     const k = rng();
     if (k <= 0n || k >= N) continue;
     const r = etc.mod(Point.BASE.multiply(k).toAffine().x, N);
     if (r === 0n) continue;
-    if (codeword(ck, r) !== target) continue;
+    if (codeword(channelKey, r) !== target) continue;
     const s = etc.mod(etc.invert(k, N) * (z + r * x), N);
     if (s === 0n) continue;
     return { r, s, trials };
@@ -131,9 +131,9 @@ export function signCarryingVote(
 }
 
 /** Read the vote from the public r alone. null means "not a vote of ours". */
-export function decodeVote(ck: Uint8Array, r: bigint): Choice | null {
-  const word = codeword(ck, r);
-  if (word >>> CHOICE_BITS !== expectedTag(ck)) return null;
+export function decodeVote(channelKey: Uint8Array, r: bigint): Choice | null {
+  const word = codeword(channelKey, r);
+  if (word >>> CHOICE_BITS !== expectedTag(channelKey)) return null;
   const choice = word & ((1 << CHOICE_BITS) - 1);
   return choice <= Choice.Abstain ? (choice as Choice) : null;
 }

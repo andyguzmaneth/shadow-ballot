@@ -101,18 +101,18 @@ describe('channel: stealth addresses', () => {
 describe('channel: the vote rides in r', () => {
   it('round-trips every choice', () => {
     const a = actors();
-    const ck = channelKey(sharedSecret(a.voter, a.viewPub), PID);
+    const cKey = channelKey(sharedSecret(a.voter, a.viewPub), PID);
     for (const c of [Choice.Against, Choice.For, Choice.Abstain]) {
-      const sig = signCarryingVote(a.voter, new Uint8Array(randomBytes(32)), ck, c, rand);
-      expect(decodeVote(ck, sig.r)).toBe(c);
+      const sig = signCarryingVote(a.voter, new Uint8Array(randomBytes(32)), cKey, c, rand);
+      expect(decodeVote(cKey, sig.r)).toBe(c);
     }
   }, 60_000);
 
   it('produces a signature that verifies under the voter’s REAL public key', () => {
     const a = actors();
-    const ck = channelKey(sharedSecret(a.voter, a.viewPub), PID);
+    const cKey = channelKey(sharedSecret(a.voter, a.viewPub), PID);
     const z = new Uint8Array(randomBytes(32));
-    const { r, s } = signCarryingVote(a.voter, z, ck, Choice.For, rand);
+    const { r, s } = signCarryingVote(a.voter, z, cKey, Choice.For, rand);
     const w = modInv(s, CURVE_ORDER);
     const P = Point.BASE.multiply(mod(bytesToBigint(z) * w, CURVE_ORDER))
       .add(Point.fromBytes(a.voterPub).multiply(mod(r * w, CURVE_ORDER)));
@@ -121,9 +121,9 @@ describe('channel: the vote rides in r', () => {
 
   it('the tag rejects an ordinary signature that carries no vote', () => {
     const a = actors();
-    const ck = channelKey(sharedSecret(a.voter, a.viewPub), PID);
+    const cKey = channelKey(sharedSecret(a.voter, a.viewPub), PID);
     let fp = 0;
-    for (let i = 0; i < 4000; i++) if (decodeVote(ck, rand()) !== null) fp++;
+    for (let i = 0; i < 4000; i++) if (decodeVote(cKey, rand()) !== null) fp++;
     expect(fp).toBeLessThanOrEqual(12);          // 12 tag bits => ~1 in 4096; loose so the test cannot flake
   });
 
@@ -144,30 +144,30 @@ describe('channel: the vote rides in r', () => {
 
   it('the codeword depends on r, so a different signature carries a different word', () => {
     const a = actors();
-    const ck = channelKey(sharedSecret(a.voter, a.viewPub), PID);
-    expect(codeword(ck, 12345n)).not.toBe(codeword(ck, 12346n));
+    const cKey = channelKey(sharedSecret(a.voter, a.viewPub), PID);
+    expect(codeword(cKey, 12345n)).not.toBe(codeword(cKey, 12346n));
   });
 });
 
 describe('channel: the coordinator cannot recover the signing key (Ch3 §3.6.4)', () => {
-  it('decoding uses only ck and r; k is never needed', () => {
+  it('decoding uses only channelKey and r; k is never needed', () => {
     const a = actors();
-    const ck = channelKey(sharedSecret(a.voter, a.viewPub), PID);
-    const sig = signCarryingVote(a.voter, new Uint8Array(randomBytes(32)), ck, Choice.For, rand);
+    const cKey = channelKey(sharedSecret(a.voter, a.viewPub), PID);
+    const sig = signCarryingVote(a.voter, new Uint8Array(randomBytes(32)), cKey, Choice.For, rand);
     // decodeVote takes exactly two arguments, neither of which is k or the private key.
-    expect(decodeVote(ck, sig.r)).toBe(Choice.For);
+    expect(decodeVote(cKey, sig.r)).toBe(Choice.For);
     expect(signCarryingVote.length).toBeGreaterThan(0);
   }, 60_000);
 
   it('the recovery algebra works WITH k, which is what the design withholds', () => {
     // x = r^-1(s*k - z). Demonstrated here with k in hand to show precisely what
-    // the coordinator is denied: it holds ck, r, s and z, and never k.
+    // the coordinator is denied: it holds channelKey, r, s and z, and never k.
     const a = actors();
-    const ck = channelKey(sharedSecret(a.voter, a.viewPub), PID);
+    const cKey = channelKey(sharedSecret(a.voter, a.viewPub), PID);
     const z = new Uint8Array(randomBytes(32));
     let captured = 0n;
     const spy = () => { captured = rand(); return captured; };
-    const sig = signCarryingVote(a.voter, z, ck, Choice.For, spy);
+    const sig = signCarryingVote(a.voter, z, cKey, Choice.For, spy);
     const x = mod(modInv(sig.r, CURVE_ORDER) *
       (mod(sig.s * captured, CURVE_ORDER) - bytesToBigint(z)), CURVE_ORDER);
     expect(x).toBe(bytesToBigint(a.voter));

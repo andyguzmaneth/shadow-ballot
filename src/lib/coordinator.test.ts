@@ -31,8 +31,8 @@ function world(nVoters: number) {
 function cast(w: ReturnType<typeof world>, i: number, choice: Choice, index = 0): ObservedTransfer {
   const v = w.voters[i];
   const sigma = sharedSecret(v.priv, getPublicKey(w.view, true));
-  const ck = channelKey(sigma, PID);
-  const sig = signCarryingVote(v.priv, new Uint8Array(randomBytes(32)), ck, choice, rand);
+  const cKey = channelKey(sigma, PID);
+  const sig = signCarryingVote(v.priv, new Uint8Array(randomBytes(32)), cKey, choice, rand);
   return { from: v.addr, to: stealthAddress(sigma, w.spendPub, PID, index), r: sig.r };
 }
 
