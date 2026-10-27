@@ -38,16 +38,27 @@ Each vote is sent to a one-time stealth address derived via ECDH. The ephemeral 
 
 ## Architecture
 
+Four modules carry the protocol: `channel.ts`, `coordinator.ts`, `tx.ts` and the `anamorphic.ts`
+primitive they build on. The rest of `src/lib/` implements the earlier design, in which the vote
+rode in the ECDSA nonce `k` and eligibility was proved with a zero-knowledge membership proof.
+That design is kept here because `observer-experiment.ts` still generates control samples from
+it; it is not part of the protocol, and the dissertation's Ch4 does not list it.
+
 ```
 src/
 ├── config.ts              # Contract address, ABI, demo proposals, demo wallets
 ├── main.ts                # App shell, tab navigation
 ├── style.css              # Dark theme, all component styles
 ├── lib/
-│   ├── anamorphic.ts      # Core: signWithCustomNonce, deriveNonce, extractHiddenMessage
-│   ├── stealth.ts         # ERC-5564: stealth address generation + scanning
-│   ├── tx.ts              # Raw tx signing with custom ECDSA nonce, RPC broadcasting
-│   ├── vote.ts            # Vote encoding, castVote, decodeVote pipelines
+│   ├── channel.ts         # THE PROTOCOL: shared secret, channel key, stealth address,
+│   │                      #   rejection sampling on r, decode
+│   ├── coordinator.ts     # THE PROTOCOL: scan, tally, commitment tree
+│   ├── tx.ts              # THE PROTOCOL: raw EIP-1559 tx signed with a chosen nonce
+│   ├── anamorphic.ts      # ECDSA with a caller-supplied k, which the three above build on
+│   ├── stealth.ts         # earlier design: ERC-5564 generation + scanning
+│   ├── vote.ts            # earlier design: the vote encoded in k
+│   ├── announcer.ts       # earlier design: ERC-5564 Announcer transport
+│   ├── observer-experiment.ts  # Ch5 §5.2 harness, generates both groups
 │   ├── wallet.ts          # Key generation, localStorage persistence
 │   └── contract.ts        # ShadowBallot.sol interaction helpers
 ├── views/
