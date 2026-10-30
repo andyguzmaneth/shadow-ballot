@@ -34,7 +34,7 @@ function renderApp(): void {
     </main>
 
     <footer class="footer">
-      Hackathon 2026 &mdash; Anamorphic Signatures + Stealth Addresses
+      Anamorphic Signatures + Stealth Addresses
     </footer>
   `;
 
